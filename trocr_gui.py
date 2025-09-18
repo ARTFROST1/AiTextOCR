@@ -39,6 +39,44 @@ from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, QRect
 from trocr_evaluation import TrOCREvaluator
 
 
+# Цветовые схемы для графиков
+class PlotThemeColors:
+    """Цветовые схемы для графиков в разных темах"""
+    
+    @staticmethod
+    def get_dark_theme():
+        """Тёмная тема для графиков"""
+        return {
+            'background': ModernColors.SURFACE,
+            'surface': ModernColors.SURFACE_LIGHT,
+            'text_primary': ModernColors.TEXT_PRIMARY,
+            'text': ModernColors.TEXT_PRIMARY,  # Алиас для совместимости
+            'text_secondary': ModernColors.TEXT_SECONDARY,
+            'border': ModernColors.BORDER,
+            'primary': ModernColors.PRIMARY,
+            'success': ModernColors.SUCCESS,
+            'warning': ModernColors.WARNING,
+            'error': ModernColors.ERROR,
+            'grid_alpha': 0.3
+        }
+    
+    @staticmethod
+    def get_light_theme():
+        """Светлая тема для графиков"""
+        return {
+            'background': '#ffffff',
+            'surface': '#f8f9fa',
+            'text_primary': '#212529',
+            'text': '#212529',  # Алиас для совместимости
+            'text_secondary': '#6c757d',
+            'border': '#dee2e6',
+            'primary': '#007bff',
+            'success': '#28a745',
+            'warning': '#ffc107',
+            'error': '#dc3545',
+            'grid_alpha': 0.2
+        }
+
 # Современная цветовая схема
 class ModernColors:
     """Современная цветовая палитра для тёмной темы"""
@@ -762,8 +800,9 @@ class EvaluationWorker(QThread):
             # Сохраняем результаты
             self.evaluator.save_results(results, stats, json_path)
             
-            # Создаем графики
-            self.evaluator.plot_results(results, png_path, show=False)
+            # Создаем графики (передаем путь без расширения для генерации обеих версий)
+            png_path_base = png_path.replace('.png', '')
+            self.evaluator.plot_results(results, png_path_base, show=False)
             
             print(f"💾 Результаты сохранены в папку: {self.results_folder}")
             
@@ -776,17 +815,21 @@ class EvaluationWorker(QThread):
 
 
 class ResultsPlotWidget(QWidget):
-    """Виджет для отображения графиков результатов"""
+    """Виджет для отображения графиков результатов с поддержкой переключения тем"""
     
     def __init__(self):
         super().__init__()
+        self.current_theme = 'dark'  # По умолчанию тёмная тема
+        self.current_results = None  # Сохраняем результаты для перерисовки
         self.setup_ui()
     
     def setup_ui(self):
         layout = QVBoxLayout()
         layout.setContentsMargins(16, 16, 16, 16)
         
-        # Заголовок графика
+        # Заголовок и кнопка переключения темы
+        header_layout = QHBoxLayout()
+        
         header_label = QLabel("📈 Визуализация результатов")
         header_label.setStyleSheet(f"""
             QLabel {{
@@ -796,7 +839,18 @@ class ResultsPlotWidget(QWidget):
                 padding: 8px 0px;
             }}
         """)
-        layout.addWidget(header_label)
+        header_layout.addWidget(header_label)
+        
+        header_layout.addStretch()
+        
+        # Кнопка переключения темы
+        self.theme_toggle_btn = QPushButton("🌙 Светлая тема")
+        self.theme_toggle_btn.setStyleSheet(ModernStyles.get_button_style("secondary"))
+        self.theme_toggle_btn.setToolTip("Переключить тему графиков")
+        self.theme_toggle_btn.clicked.connect(self.toggle_theme)
+        header_layout.addWidget(self.theme_toggle_btn)
+        
+        layout.addLayout(header_layout)
         
         # Создаем matplotlib canvas с современными настройками
         self.figure = Figure(figsize=(12, 8), facecolor=ModernColors.SURFACE)
@@ -810,26 +864,30 @@ class ResultsPlotWidget(QWidget):
     
     def plot_results(self, results: Dict):
         """Построение графиков результатов"""
+        self.current_results = results  # Сохраняем результаты
+        self._plot_with_theme(results)
+    
+    def _plot_with_theme(self, results: Dict):
+        """Построение графиков с текущей темой"""
         self.figure.clear()
         
-        # Настройка цветовой схемы
-        colors = {
-            'primary': ModernColors.PRIMARY,
-            'success': ModernColors.SUCCESS,
-            'warning': ModernColors.WARNING,
-            'error': ModernColors.ERROR,
-            'text': ModernColors.TEXT_PRIMARY,
-            'text_secondary': ModernColors.TEXT_SECONDARY,
-            'surface': ModernColors.SURFACE,
-            'border': ModernColors.BORDER
-        }
+        # Получаем цветовую схему для текущей темы
+        if self.current_theme == 'dark':
+            colors = PlotThemeColors.get_dark_theme()
+            plt.style.use('dark_background')
+        else:
+            colors = PlotThemeColors.get_light_theme()
+            plt.style.use('default')
+        
+        # Обновляем фон фигуры
+        self.figure.patch.set_facecolor(colors['background'])
         
         # Создаем 2x2 сетку графиков
         axes = self.figure.subplots(2, 2)
         
         # Настройка общего стиля
         for ax in axes.flat:
-            ax.set_facecolor(ModernColors.SURFACE_LIGHT)
+            ax.set_facecolor(colors['surface'])
             ax.tick_params(colors=colors['text_secondary'])
             ax.spines['bottom'].set_color(colors['border'])
             ax.spines['top'].set_color(colors['border'])
@@ -842,7 +900,7 @@ class ResultsPlotWidget(QWidget):
         axes[0, 0].set_title('Распределение WER', fontsize=14, fontweight='bold', color=colors['text'])
         axes[0, 0].set_xlabel('WER (%)', color=colors['text_secondary'])
         axes[0, 0].set_ylabel('Частота', color=colors['text_secondary'])
-        axes[0, 0].grid(True, alpha=0.3, color=colors['border'])
+        axes[0, 0].grid(True, alpha=colors['grid_alpha'], color=colors['border'])
         
         # Распределение CER
         axes[0, 1].hist(results['cer_scores'], bins=30, alpha=0.8, 
@@ -850,7 +908,7 @@ class ResultsPlotWidget(QWidget):
         axes[0, 1].set_title('Распределение CER', fontsize=14, fontweight='bold', color=colors['text'])
         axes[0, 1].set_xlabel('CER (%)', color=colors['text_secondary'])
         axes[0, 1].set_ylabel('Частота', color=colors['text_secondary'])
-        axes[0, 1].grid(True, alpha=0.3, color=colors['border'])
+        axes[0, 1].grid(True, alpha=colors['grid_alpha'], color=colors['border'])
         
         # Сравнение WER и CER
         scatter = axes[1, 0].scatter(results['wer_scores'], results['cer_scores'], 
@@ -859,7 +917,7 @@ class ResultsPlotWidget(QWidget):
         axes[1, 0].set_title('WER vs CER', fontsize=14, fontweight='bold', color=colors['text'])
         axes[1, 0].set_xlabel('WER (%)', color=colors['text_secondary'])
         axes[1, 0].set_ylabel('CER (%)', color=colors['text_secondary'])
-        axes[1, 0].grid(True, alpha=0.3, color=colors['border'])
+        axes[1, 0].grid(True, alpha=colors['grid_alpha'], color=colors['border'])
         
         # Box plot метрик
         data_for_box = [results['wer_scores'], results['cer_scores']]
@@ -875,13 +933,26 @@ class ResultsPlotWidget(QWidget):
         
         axes[1, 1].set_title('Распределение метрик', fontsize=14, fontweight='bold', color=colors['text'])
         axes[1, 1].set_ylabel('Процент ошибок', color=colors['text_secondary'])
-        axes[1, 1].grid(True, alpha=0.3, color=colors['border'])
+        axes[1, 1].grid(True, alpha=colors['grid_alpha'], color=colors['border'])
         
         # Настройка общего стиля фигуры
-        self.figure.patch.set_facecolor(ModernColors.SURFACE)
+        self.figure.patch.set_facecolor(colors['background'])
         
         self.figure.tight_layout(pad=2.0)
         self.canvas.draw()
+    
+    def toggle_theme(self):
+        """Переключение между светлой и тёмной темой"""
+        if self.current_theme == 'dark':
+            self.current_theme = 'light'
+            self.theme_toggle_btn.setText("🌙 Тёмная тема")
+        else:
+            self.current_theme = 'dark'
+            self.theme_toggle_btn.setText("☀️ Светлая тема")
+        
+        # Перерисовываем графики с новой темой, если есть данные
+        if self.current_results is not None:
+            self._plot_with_theme(self.current_results)
 
 
 class MainWindow(QMainWindow):

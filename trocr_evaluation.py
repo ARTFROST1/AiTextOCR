@@ -372,37 +372,112 @@ class TrOCREvaluator:
     
     def plot_results(self, results: Dict, save_path: str = None, show: bool = False):
         """
-        Визуализация результатов
+        Визуализация результатов с поддержкой светлой и тёмной тем
         
         Args:
             results: Результаты оценки
-            save_path: Путь для сохранения графиков
+            save_path: Путь для сохранения графиков (без расширения)
+            show: Показывать ли графики
+        """
+        if save_path:
+            # Сохраняем обе версии: светлую и тёмную
+            self._plot_with_theme(results, 'light', f"{save_path}_light.png", show=False)
+            self._plot_with_theme(results, 'dark', f"{save_path}_dark.png", show=False)
+        else:
+            # Показываем только тёмную версию по умолчанию
+            self._plot_with_theme(results, 'dark', None, show)
+    
+    def _plot_with_theme(self, results: Dict, theme: str, save_path: str = None, show: bool = False):
+        """
+        Построение графиков с определённой темой
+        
+        Args:
+            results: Результаты оценки
+            theme: 'light' или 'dark'
+            save_path: Путь для сохранения
+            show: Показывать ли графики
         """
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         
+        # Настройка темы
+        if theme == 'dark':
+            plt.style.use('dark_background')
+            colors = {
+                'primary': '#6366f1',
+                'success': '#10b981', 
+                'warning': '#f59e0b',
+                'error': '#ef4444',
+                'text': '#f8fafc',
+                'text_secondary': '#cbd5e1',
+                'surface': '#1e293b',
+                'border': '#475569',
+                'grid_alpha': 0.3
+            }
+            fig.patch.set_facecolor('#0f172a')
+        else:
+            plt.style.use('default')
+            colors = {
+                'primary': '#007bff',
+                'success': '#28a745',
+                'warning': '#ffc107', 
+                'error': '#dc3545',
+                'text': '#212529',
+                'text_secondary': '#6c757d',
+                'surface': '#f8f9fa',
+                'border': '#dee2e6',
+                'grid_alpha': 0.2
+            }
+            fig.patch.set_facecolor('#ffffff')
+        
+        # Настройка общего стиля
+        for ax in axes.flat:
+            ax.set_facecolor(colors['surface'])
+            ax.tick_params(colors=colors['text_secondary'])
+            ax.spines['bottom'].set_color(colors['border'])
+            ax.spines['top'].set_color(colors['border'])
+            ax.spines['right'].set_color(colors['border'])
+            ax.spines['left'].set_color(colors['border'])
+        
         # Распределение WER
-        axes[0, 0].hist(results['wer_scores'], bins=30, alpha=0.7, color='blue')
-        axes[0, 0].set_title('Распределение WER')
-        axes[0, 0].set_xlabel('WER (%)')
-        axes[0, 0].set_ylabel('Частота')
+        axes[0, 0].hist(results['wer_scores'], bins=30, alpha=0.8, 
+                       color=colors['primary'], edgecolor=colors['border'], linewidth=1)
+        axes[0, 0].set_title('Распределение WER', fontsize=14, fontweight='bold', color=colors['text'])
+        axes[0, 0].set_xlabel('WER (%)', color=colors['text_secondary'])
+        axes[0, 0].set_ylabel('Частота', color=colors['text_secondary'])
+        axes[0, 0].grid(True, alpha=colors['grid_alpha'], color=colors['border'])
         
         # Распределение CER
-        axes[0, 1].hist(results['cer_scores'], bins=30, alpha=0.7, color='green')
-        axes[0, 1].set_title('Распределение CER')
-        axes[0, 1].set_xlabel('CER (%)')
-        axes[0, 1].set_ylabel('Частота')
+        axes[0, 1].hist(results['cer_scores'], bins=30, alpha=0.8, 
+                       color=colors['error'], edgecolor=colors['border'], linewidth=1)
+        axes[0, 1].set_title('Распределение CER', fontsize=14, fontweight='bold', color=colors['text'])
+        axes[0, 1].set_xlabel('CER (%)', color=colors['text_secondary'])
+        axes[0, 1].set_ylabel('Частота', color=colors['text_secondary'])
+        axes[0, 1].grid(True, alpha=colors['grid_alpha'], color=colors['border'])
         
         # Сравнение WER и CER
-        axes[1, 0].scatter(results['wer_scores'], results['cer_scores'], alpha=0.6)
-        axes[1, 0].set_title('WER vs CER')
-        axes[1, 0].set_xlabel('WER (%)')
-        axes[1, 0].set_ylabel('CER (%)')
+        scatter = axes[1, 0].scatter(results['wer_scores'], results['cer_scores'], 
+                                   alpha=0.7, color=colors['warning'], s=60, 
+                                   edgecolors=colors['border'], linewidth=0.5)
+        axes[1, 0].set_title('WER vs CER', fontsize=14, fontweight='bold', color=colors['text'])
+        axes[1, 0].set_xlabel('WER (%)', color=colors['text_secondary'])
+        axes[1, 0].set_ylabel('CER (%)', color=colors['text_secondary'])
+        axes[1, 0].grid(True, alpha=colors['grid_alpha'], color=colors['border'])
         
         # Box plot метрик
         data_for_box = [results['wer_scores'], results['cer_scores']]
-        axes[1, 1].boxplot(data_for_box, labels=['WER', 'CER'])
-        axes[1, 1].set_title('Распределение метрик')
-        axes[1, 1].set_ylabel('Процент ошибок')
+        bp = axes[1, 1].boxplot(data_for_box, labels=['WER', 'CER'], patch_artist=True)
+        bp['boxes'][0].set_facecolor(colors['primary'])
+        bp['boxes'][0].set_alpha(0.8)
+        bp['boxes'][1].set_facecolor(colors['error'])
+        bp['boxes'][1].set_alpha(0.8)
+        
+        # Стилизация элементов box plot
+        for element in ['whiskers', 'fliers', 'medians', 'caps']:
+            plt.setp(bp[element], color=colors['border'])
+        
+        axes[1, 1].set_title('Распределение метрик', fontsize=14, fontweight='bold', color=colors['text'])
+        axes[1, 1].set_ylabel('Процент ошибок', color=colors['text_secondary'])
+        axes[1, 1].grid(True, alpha=colors['grid_alpha'], color=colors['border'])
         
         plt.tight_layout()
         
