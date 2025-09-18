@@ -1,0 +1,6 @@
+{
+  "model_name": "microsoft/trocr-base-handwritten",
+  "dataset_path": "IAM/image",
+  "annotations_path": "IAM/gt_test.txt",
+  "limit": 50
+}

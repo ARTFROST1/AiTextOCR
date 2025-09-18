@@ -26,7 +26,8 @@ from PyQt5.QtWidgets import (
     QGridLayout, QTabWidget, QLabel, QPushButton, QComboBox, 
     QSpinBox, QProgressBar, QTextEdit, QFileDialog, QMessageBox,
     QGroupBox, QSplitter, QFrame, QScrollArea, QTableWidget, 
-    QTableWidgetItem, QHeaderView, QCheckBox, QLineEdit
+    QTableWidgetItem, QHeaderView, QCheckBox, QLineEdit, QTextBrowser,
+    QSizePolicy, QScrollBar, QToolButton
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap, QIcon
@@ -345,6 +346,354 @@ class ModernStyles:
         """
 
 
+class ConsoleOutput(QTextBrowser):
+    """Виджет для отображения консольного вывода с современным дизайном"""
+    
+    def __init__(self):
+        super().__init__()
+        self.setup_ui()
+        self.setup_styling()
+        
+    def setup_ui(self):
+        """Настройка интерфейса консоли"""
+        # Настройка шрифта
+        font = QFont("Consolas", 10)
+        font.setStyleHint(QFont.Monospace)
+        self.setFont(font)
+        
+        # Настройка поведения
+        self.setReadOnly(True)
+        self.setLineWrapMode(QTextBrowser.WidgetWidth)
+        self.setOpenExternalLinks(False)
+        
+        # Настройка прокрутки
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+    def setup_styling(self):
+        """Настройка стилей консоли"""
+        self.setStyleSheet(f"""
+            QTextBrowser {{
+                background-color: {ModernColors.BACKGROUND};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: 1px solid {ModernColors.BORDER};
+                border-radius: 8px;
+                padding: 8px;
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-size: 11px;
+                line-height: 1.4;
+            }}
+            
+            QTextBrowser:focus {{
+                border-color: {ModernColors.PRIMARY};
+            }}
+            
+            QScrollBar:vertical {{
+                background-color: {ModernColors.SURFACE_LIGHT};
+                width: 12px;
+                border-radius: 6px;
+            }}
+            
+            QScrollBar::handle:vertical {{
+                background-color: {ModernColors.BORDER};
+                border-radius: 6px;
+                min-height: 20px;
+            }}
+            
+            QScrollBar::handle:vertical:hover {{
+                background-color: {ModernColors.PRIMARY};
+            }}
+        """)
+    
+    def append_text(self, text, color=None):
+        """Добавление текста с возможностью цветового выделения"""
+        if color is None:
+            color = ModernColors.TEXT_PRIMARY
+            
+        # Улучшенное форматирование с подсветкой синтаксиса
+        formatted_text = self.format_console_text(text, color)
+        self.append(formatted_text)
+        
+        # Автоскролл к концу
+        self.moveCursor(self.textCursor().End)
+        
+    def format_console_text(self, text, color):
+        """Форматирование текста консоли с подсветкой"""
+        # Определяем тип сообщения и применяем соответствующее форматирование
+        if "🚀" in text and "ЗАПУСК" in text:
+            # Заголовок запуска
+            return f'<div style="color: {ModernColors.PRIMARY}; font-weight: bold; margin: 4px 0px;">{text}</div>'
+        elif "📊" in text and "РЕЗУЛЬТАТЫ" in text:
+            # Заголовок результатов
+            return f'<div style="color: {ModernColors.SUCCESS}; font-weight: bold; margin: 4px 0px;">{text}</div>'
+        elif "🔄" in text and "Прогресс" in text:
+            # Прогресс
+            return f'<div style="color: {ModernColors.INFO}; margin: 2px 0px;">{text}</div>'
+        elif "✅" in text or "успешно" in text:
+            # Успех
+            return f'<div style="color: {ModernColors.SUCCESS}; margin: 2px 0px;">{text}</div>'
+        elif "❌" in text or "Ошибка" in text:
+            # Ошибка
+            return f'<div style="color: {ModernColors.ERROR}; margin: 2px 0px;">{text}</div>'
+        elif "⚠️" in text or "Предупреждение" in text:
+            # Предупреждение
+            return f'<div style="color: {ModernColors.WARNING}; margin: 2px 0px;">{text}</div>'
+        elif "=" in text and len(text) > 20:
+            # Разделители
+            return f'<div style="color: {ModernColors.BORDER}; margin: 2px 0px;">{text}</div>'
+        else:
+            # Обычный текст
+            return f'<div style="color: {color}; margin: 1px 0px;">{text}</div>'
+        
+    def clear_console(self):
+        """Очистка консоли"""
+        self.clear()
+        
+    def get_console_text(self):
+        """Получение текста консоли для копирования"""
+        return self.toPlainText()
+
+
+class ConsoleWidget(QWidget):
+    """Контейнер для консольного окна с управлением"""
+    
+    def __init__(self):
+        super().__init__()
+        self.setup_ui()
+        self.setup_connections()
+        
+    def setup_ui(self):
+        """Настройка интерфейса консольного виджета"""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        
+        # Заголовок консоли
+        header_layout = QHBoxLayout()
+        
+        # Иконка и заголовок
+        title_label = QLabel("🖥️ Консоль")
+        title_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_PRIMARY};
+                font-size: 14px;
+                font-weight: 600;
+                padding: 4px 0px;
+            }}
+        """)
+        header_layout.addWidget(title_label)
+        
+        header_layout.addStretch()
+        
+        # Кнопки управления
+        self.clear_btn = QToolButton()
+        self.clear_btn.setText("🗑️")
+        self.clear_btn.setToolTip("Очистить консоль")
+        self.clear_btn.setStyleSheet(f"""
+            QToolButton {{
+                background-color: {ModernColors.SURFACE_LIGHT};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: 1px solid {ModernColors.BORDER};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+            QToolButton:hover {{
+                background-color: {ModernColors.SURFACE};
+                border-color: {ModernColors.ERROR};
+            }}
+        """)
+        
+        self.copy_btn = QToolButton()
+        self.copy_btn.setText("📋")
+        self.copy_btn.setToolTip("Копировать в буфер обмена")
+        self.copy_btn.setStyleSheet(f"""
+            QToolButton {{
+                background-color: {ModernColors.SURFACE_LIGHT};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: 1px solid {ModernColors.BORDER};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+            QToolButton:hover {{
+                background-color: {ModernColors.SURFACE};
+                border-color: {ModernColors.PRIMARY};
+            }}
+        """)
+        
+        self.toggle_btn = QToolButton()
+        self.toggle_btn.setText("📉")
+        self.toggle_btn.setToolTip("Свернуть/развернуть консоль")
+        self.toggle_btn.setCheckable(True)
+        self.toggle_btn.setStyleSheet(f"""
+            QToolButton {{
+                background-color: {ModernColors.SURFACE_LIGHT};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: 1px solid {ModernColors.BORDER};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+            QToolButton:hover {{
+                background-color: {ModernColors.SURFACE};
+                border-color: {ModernColors.PRIMARY};
+            }}
+            QToolButton:checked {{
+                background-color: {ModernColors.PRIMARY};
+                color: {ModernColors.TEXT_PRIMARY};
+            }}
+        """)
+        
+        # Кнопка настроек консоли
+        self.settings_btn = QToolButton()
+        self.settings_btn.setText("⚙️")
+        self.settings_btn.setToolTip("Настройки консоли")
+        self.settings_btn.setStyleSheet(f"""
+            QToolButton {{
+                background-color: {ModernColors.SURFACE_LIGHT};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: 1px solid {ModernColors.BORDER};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+            QToolButton:hover {{
+                background-color: {ModernColors.SURFACE};
+                border-color: {ModernColors.PRIMARY};
+            }}
+        """)
+        
+        header_layout.addWidget(self.clear_btn)
+        header_layout.addWidget(self.copy_btn)
+        header_layout.addWidget(self.settings_btn)
+        header_layout.addWidget(self.toggle_btn)
+        
+        layout.addLayout(header_layout)
+        
+        # Консольное окно
+        self.console = ConsoleOutput()
+        self.console.setMaximumHeight(200)
+        self.console.setMinimumHeight(100)
+        layout.addWidget(self.console)
+        
+        # Изначально консоль свернута
+        self.is_collapsed = True
+        self.console.setVisible(False)
+        self.toggle_btn.setChecked(False)
+        
+    def setup_connections(self):
+        """Настройка соединений"""
+        self.clear_btn.clicked.connect(self.clear_console)
+        self.copy_btn.clicked.connect(self.copy_to_clipboard)
+        self.toggle_btn.clicked.connect(self.toggle_console)
+        self.settings_btn.clicked.connect(self.show_console_settings)
+        
+    def clear_console(self):
+        """Очистка консоли"""
+        self.console.clear_console()
+        
+    def copy_to_clipboard(self):
+        """Копирование в буфер обмена"""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.console.get_console_text())
+        
+    def toggle_console(self):
+        """Переключение видимости консоли с анимацией"""
+        self.is_collapsed = not self.is_collapsed
+        
+        # Создаем анимацию для плавного изменения размера
+        if not hasattr(self, 'console_animation'):
+            self.console_animation = QPropertyAnimation(self.console, b"maximumHeight")
+            self.console_animation.setDuration(300)
+            self.console_animation.setEasingCurve(QEasingCurve.OutCubic)
+        
+        if self.is_collapsed:
+            # Сворачиваем консоль
+            self.console_animation.setStartValue(200)
+            self.console_animation.setEndValue(0)
+            self.console.setVisible(False)
+            self.toggle_btn.setText("📈")
+            self.toggle_btn.setToolTip("Развернуть консоль")
+        else:
+            # Разворачиваем консоль
+            self.console.setVisible(True)
+            self.console_animation.setStartValue(0)
+            self.console_animation.setEndValue(200)
+            self.toggle_btn.setText("📉")
+            self.toggle_btn.setToolTip("Свернуть консоль")
+            
+        self.console_animation.start()
+            
+    def append_text(self, text, color=None):
+        """Добавление текста в консоль"""
+        self.console.append_text(text, color)
+        
+    def append_success(self, text):
+        """Добавление успешного сообщения"""
+        self.append_text(text, ModernColors.SUCCESS)
+        
+    def append_error(self, text):
+        """Добавление сообщения об ошибке"""
+        self.append_text(text, ModernColors.ERROR)
+        
+    def append_warning(self, text):
+        """Добавление предупреждения"""
+        self.append_text(text, ModernColors.WARNING)
+        
+    def append_info(self, text):
+        """Добавление информационного сообщения"""
+        self.append_text(text, ModernColors.INFO)
+        
+    def show_console_settings(self):
+        """Показ настроек консоли"""
+        dialog = QMessageBox()
+        dialog.setWindowTitle("Настройки консоли")
+        dialog.setText("Настройки консоли:")
+        dialog.setInformativeText(
+            "• Размер шрифта: 11px\n"
+            "• Шрифт: Consolas (моноширинный)\n"
+            "• Тема: Тёмная\n"
+            "• Автоскролл: Включён\n"
+            "• Подсветка синтаксиса: Включена"
+        )
+        dialog.setIcon(QMessageBox.Information)
+        dialog.exec_()
+
+
+class PrintCapture:
+    """Класс для перехвата print() вызовов и дублирования в GUI"""
+    
+    def __init__(self, console_widget):
+        self.console_widget = console_widget
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+        
+    def write(self, text):
+        """Перехват вывода"""
+        # Выводим в оригинальный stdout
+        self.original_stdout.write(text)
+        self.original_stdout.flush()
+        
+        # Дублируем в GUI консоль
+        if text.strip():  # Игнорируем пустые строки
+            # Определяем тип сообщения по содержимому
+            if "❌" in text or "Ошибка" in text:
+                self.console_widget.append_error(text.strip())
+            elif "✅" in text or "успешно" in text:
+                self.console_widget.append_success(text.strip())
+            elif "⚠️" in text or "Предупреждение" in text:
+                self.console_widget.append_warning(text.strip())
+            elif "🔄" in text or "Прогресс" in text:
+                self.console_widget.append_info(text.strip())
+            else:
+                self.console_widget.append_text(text.strip())
+    
+    def flush(self):
+        """Сброс буфера"""
+        self.original_stdout.flush()
+
+
 class EvaluationWorker(QThread):
     """Worker thread для выполнения оценки в фоне"""
     progress_updated = pyqtSignal(int, str)  # progress, status_text
@@ -546,9 +895,17 @@ class MainWindow(QMainWindow):
         self.worker_thread = None
         self.start_time = None  # Время начала оценки
         self.current_results_folder = None  # Текущая папка с результатами
+        self.console_widget = None  # Консольное окно
+        self.print_capture = None  # Перехватчик print()
+        self.profiles_dir = "profiles"  # Папка для профилей
+        self.settings_file = os.path.join(self.profiles_dir, "trocr_settings.json")  # Файл настроек по умолчанию
         
         self.setup_ui()
         self.setup_connections()
+        self.setup_console_capture()
+        self.setup_profiles_directory()  # Создаем папку для профилей
+        # Загружаем настройки после создания всех элементов
+        QTimer.singleShot(100, self.load_default_settings)
         
     def setup_ui(self):
         """Настройка пользовательского интерфейса"""
@@ -614,6 +971,76 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
         # Запускаем анимацию появления
         self.fade_animation.start()
+        
+    def closeEvent(self, event):
+        """Обработчик события закрытия окна"""
+        # Автоматически сохраняем настройки при закрытии
+        self.auto_save_settings()
+        # Восстанавливаем оригинальный stdout
+        self.restore_console()
+        super().closeEvent(event)
+    
+    def setup_profiles_directory(self):
+        """Создание папки для профилей"""
+        try:
+            os.makedirs(self.profiles_dir, exist_ok=True)
+            print(f"📁 Папка профилей создана: {self.profiles_dir}")
+        except Exception as e:
+            print(f"⚠️ Не удалось создать папку профилей: {e}")
+    
+    def setup_console_capture(self):
+        """Настройка перехвата print() вызовов"""
+        if self.console_widget:
+            self.print_capture = PrintCapture(self.console_widget)
+            # Перехватываем stdout для дублирования в GUI
+            sys.stdout = self.print_capture
+            
+    def restore_console(self):
+        """Восстановление оригинального stdout"""
+        if self.print_capture:
+            sys.stdout = self.print_capture.original_stdout
+    
+    def load_default_settings(self):
+        """Автоматическая загрузка настроек при запуске"""
+        if os.path.exists(self.settings_file):
+            try:
+                with open(self.settings_file, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                self.apply_settings(settings)
+                print(f"✅ Настройки загружены из {self.settings_file}")
+            except Exception as e:
+                print(f"⚠️ Не удалось загрузить настройки: {e}")
+    
+    def apply_settings(self, settings):
+        """Применение настроек к интерфейсу"""
+        if 'model_name' in settings:
+            index = self.model_combo.findText(settings['model_name'])
+            if index >= 0:
+                self.model_combo.setCurrentIndex(index)
+        
+        if 'dataset_path' in settings:
+            self.dataset_path_edit.setText(settings['dataset_path'])
+        
+        if 'annotations_path' in settings:
+            self.annotations_path_edit.setText(settings['annotations_path'])
+        
+        if 'limit' in settings:
+            self.limit_spinbox.setValue(settings['limit'])
+    
+    def auto_save_settings(self):
+        """Автоматическое сохранение настроек"""
+        settings = {
+            'model_name': self.model_combo.currentText(),
+            'dataset_path': self.dataset_path_edit.text(),
+            'annotations_path': self.annotations_path_edit.text(),
+            'limit': self.limit_spinbox.value()
+        }
+        
+        try:
+            with open(self.settings_file, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"⚠️ Не удалось сохранить настройки: {e}")
         
     def setup_settings_tab(self):
         """Настройка вкладки с параметрами"""
@@ -767,12 +1194,14 @@ class MainWindow(QMainWindow):
         self.stop_btn.setStyleSheet(ModernStyles.get_button_style("error"))
         button_layout.addWidget(self.stop_btn, 0, 1)
         
-        self.save_settings_btn = QPushButton("💾 Сохранить настройки")
+        self.save_settings_btn = QPushButton("💾 Сохранить профиль")
         self.save_settings_btn.setStyleSheet(ModernStyles.get_button_style("primary"))
+        self.save_settings_btn.setToolTip("Сохранить текущие настройки как профиль")
         button_layout.addWidget(self.save_settings_btn, 1, 0)
         
-        self.load_settings_btn = QPushButton("📁 Загрузить настройки")
+        self.load_settings_btn = QPushButton("📁 Загрузить профиль")
         self.load_settings_btn.setStyleSheet(ModernStyles.get_button_style("primary"))
+        self.load_settings_btn.setToolTip("Загрузить сохраненный профиль настроек")
         button_layout.addWidget(self.load_settings_btn, 1, 1)
         
         self.open_general_results_btn = QPushButton("📂 Открыть папку results")
@@ -781,6 +1210,10 @@ class MainWindow(QMainWindow):
         
         control_layout.addLayout(button_layout)
         layout.addWidget(control_group)
+        
+        # Консольное окно
+        self.console_widget = ConsoleWidget()
+        layout.addWidget(self.console_widget)
         
         layout.addStretch()
         self.tab_widget.addTab(settings_widget, "⚙️ Настройки")
@@ -961,6 +1394,16 @@ class MainWindow(QMainWindow):
         self.load_settings_btn.clicked.connect(self.load_settings)
         self.open_general_results_btn.clicked.connect(self.open_general_results_folder)
         self.open_results_btn.clicked.connect(self.open_results_folder)
+        
+        # Автоматическое сохранение при изменении настроек
+        if hasattr(self, 'model_combo'):
+            self.model_combo.currentTextChanged.connect(self.auto_save_settings)
+        if hasattr(self, 'dataset_path_edit'):
+            self.dataset_path_edit.textChanged.connect(self.auto_save_settings)
+        if hasattr(self, 'annotations_path_edit'):
+            self.annotations_path_edit.textChanged.connect(self.auto_save_settings)
+        if hasattr(self, 'limit_spinbox'):
+            self.limit_spinbox.valueChanged.connect(self.auto_save_settings)
     
     def update_model_info(self, model_name):
         """Обновление информации о выбранной модели"""
@@ -1222,30 +1665,52 @@ class MainWindow(QMainWindow):
             'model_name': self.model_combo.currentText(),
             'dataset_path': self.dataset_path_edit.text(),
             'annotations_path': self.annotations_path_edit.text(),
-            'limit': self.limit_spinbox.value()
+            'limit': self.limit_spinbox.value(),
+            'saved_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'profile_name': f"profile_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         }
+        
+        # Предлагаем сохранить в папку профилей
+        default_filename = f"trocr_profile_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        default_path = os.path.join(self.profiles_dir, default_filename)
         
         file_path, _ = QFileDialog.getSaveFileName(
             self, 
-            "Сохранить настройки", 
-            "trocr_settings.json", 
+            "Сохранить профиль настроек", 
+            default_path, 
             "JSON files (*.json)"
         )
         
         if file_path:
             try:
+                # Сохраняем в папку профилей
+                if not file_path.startswith(self.profiles_dir):
+                    filename = os.path.basename(file_path)
+                    file_path = os.path.join(self.profiles_dir, filename)
+                
                 with open(file_path, 'w', encoding='utf-8') as f:
                     json.dump(settings, f, ensure_ascii=False, indent=2)
-                QMessageBox.information(self, "Успех", f"Настройки сохранены в {file_path}")
+                
+                QMessageBox.information(
+                    self, 
+                    "✅ Профиль сохранен", 
+                    f"Профиль настроек успешно сохранен в:\n{file_path}\n\n"
+                    f"Модель: {settings['model_name']}\n"
+                    f"Датасет: {settings['dataset_path']}\n"
+                    f"Изображений: {settings['limit']}\n"
+                    f"Сохранен: {settings['saved_at']}"
+                )
+                print(f"💾 Профиль настроек сохранен: {file_path}")
             except Exception as e:
-                QMessageBox.critical(self, "Ошибка", f"Ошибка при сохранении: {str(e)}")
+                QMessageBox.critical(self, "❌ Ошибка", f"Ошибка при сохранении профиля:\n{str(e)}")
+                print(f"❌ Ошибка сохранения профиля: {e}")
     
     def load_settings(self):
         """Загрузка настроек из файла"""
         file_path, _ = QFileDialog.getOpenFileName(
             self, 
-            "Загрузить настройки", 
-            "", 
+            "Загрузить профиль настроек", 
+            self.profiles_dir,  # Начинаем с папки профилей
             "JSON files (*.json)"
         )
         
@@ -1255,24 +1720,24 @@ class MainWindow(QMainWindow):
                     settings = json.load(f)
                 
                 # Применяем настройки
-                if 'model_name' in settings:
-                    index = self.model_combo.findText(settings['model_name'])
-                    if index >= 0:
-                        self.model_combo.setCurrentIndex(index)
+                self.apply_settings(settings)
                 
-                if 'dataset_path' in settings:
-                    self.dataset_path_edit.setText(settings['dataset_path'])
-                
-                if 'annotations_path' in settings:
-                    self.annotations_path_edit.setText(settings['annotations_path'])
-                
-                if 'limit' in settings:
-                    self.limit_spinbox.setValue(settings['limit'])
-                
-                QMessageBox.information(self, "Успех", f"Настройки загружены из {file_path}")
+                # Показываем информацию о загруженном профиле
+                saved_at = settings.get('saved_at', 'Неизвестно')
+                QMessageBox.information(
+                    self, 
+                    "✅ Профиль загружен", 
+                    f"Профиль настроек успешно загружен из:\n{file_path}\n\n"
+                    f"Модель: {settings.get('model_name', 'Не указана')}\n"
+                    f"Датасет: {settings.get('dataset_path', 'Не указан')}\n"
+                    f"Изображений: {settings.get('limit', 'Не указано')}\n"
+                    f"Сохранен: {saved_at}"
+                )
+                print(f"📁 Профиль настроек загружен: {file_path}")
                 
             except Exception as e:
-                QMessageBox.critical(self, "Ошибка", f"Ошибка при загрузке: {str(e)}")
+                QMessageBox.critical(self, "❌ Ошибка", f"Ошибка при загрузке профиля:\n{str(e)}")
+                print(f"❌ Ошибка загрузки профиля: {e}")
     
     def create_results_folder(self, model_name: str) -> str:
         """
@@ -1352,6 +1817,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось открыть папку results: {str(e)}")
             print(f"❌ Ошибка при открытии папки results: {e}")
+    
 
 
 def main():
