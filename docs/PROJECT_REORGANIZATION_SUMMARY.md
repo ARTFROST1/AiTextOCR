@@ -153,3 +153,4 @@ python run_gui.py
 # Консольный режим
 python scripts/run_full_evaluation.py
 ```
+

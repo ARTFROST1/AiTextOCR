@@ -32,9 +32,317 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap, QIcon
 
 import qdarkstyle
+from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, QRect
 
 # Импорт нашей логики TrOCR
 from trocr_evaluation import TrOCREvaluator
+
+
+# Современная цветовая схема
+class ModernColors:
+    """Современная цветовая палитра для тёмной темы"""
+    
+    # Основные цвета
+    PRIMARY = "#6366f1"      # Индиго
+    PRIMARY_DARK = "#4f46e5" # Тёмный индиго
+    PRIMARY_LIGHT = "#818cf8" # Светлый индиго
+    
+    # Акцентные цвета
+    SUCCESS = "#10b981"      # Изумрудный
+    SUCCESS_DARK = "#059669" # Тёмный изумрудный
+    WARNING = "#f59e0b"      # Янтарный
+    WARNING_DARK = "#d97706" # Тёмный янтарный
+    ERROR = "#ef4444"        # Красный
+    ERROR_DARK = "#dc2626"   # Тёмный красный
+    INFO = "#3b82f6"         # Синий
+    INFO_DARK = "#2563eb"    # Тёмный синий
+    
+    # Нейтральные цвета
+    BACKGROUND = "#0f172a"   # Очень тёмный синий
+    SURFACE = "#1e293b"      # Тёмный синий
+    SURFACE_LIGHT = "#334155" # Светлый тёмный синий
+    BORDER = "#475569"       # Серо-синий
+    TEXT_PRIMARY = "#f8fafc" # Почти белый
+    TEXT_SECONDARY = "#cbd5e1" # Светло-серый
+    TEXT_MUTED = "#94a3b8"   # Серый
+    
+    # Градиенты
+    GRADIENT_PRIMARY = "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #6366f1, stop:1 #8b5cf6)"
+    GRADIENT_SUCCESS = "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #10b981, stop:1 #059669)"
+    GRADIENT_WARNING = "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #f59e0b, stop:1 #d97706)"
+    GRADIENT_ERROR = "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ef4444, stop:1 #dc2626)"
+
+
+class ModernStyles:
+    """Современные стили для компонентов"""
+    
+    @staticmethod
+    def get_main_window_style():
+        """Стиль главного окна"""
+        return f"""
+        QMainWindow {{
+            background-color: {ModernColors.BACKGROUND};
+            color: {ModernColors.TEXT_PRIMARY};
+        }}
+        
+        QTabWidget::pane {{
+            border: 1px solid {ModernColors.BORDER};
+            border-radius: 12px;
+            background-color: {ModernColors.SURFACE};
+            margin: 8px;
+        }}
+        
+        QTabBar::tab {{
+            background-color: {ModernColors.SURFACE_LIGHT};
+            color: {ModernColors.TEXT_SECONDARY};
+            padding: 12px 24px;
+            margin: 4px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }}
+        
+        QTabBar::tab:selected {{
+            background: {ModernColors.GRADIENT_PRIMARY};
+            color: {ModernColors.TEXT_PRIMARY};
+            font-weight: 600;
+        }}
+        
+        QTabBar::tab:hover {{
+            background-color: {ModernColors.SURFACE};
+            color: {ModernColors.TEXT_PRIMARY};
+        }}
+        """
+    
+    @staticmethod
+    def get_group_box_style():
+        """Стиль групповых элементов"""
+        return f"""
+        QGroupBox {{
+            font-weight: 600;
+            font-size: 16px;
+            color: {ModernColors.TEXT_PRIMARY};
+            border: 2px solid {ModernColors.BORDER};
+            border-radius: 12px;
+            margin: 8px 0px;
+            padding-top: 16px;
+            background-color: {ModernColors.SURFACE};
+        }}
+        
+        QGroupBox::title {{
+            subcontrol-origin: margin;
+            left: 16px;
+            padding: 0 8px 0 8px;
+            background-color: {ModernColors.SURFACE};
+        }}
+        """
+    
+    @staticmethod
+    def get_button_style(button_type="primary"):
+        """Стили кнопок"""
+        if button_type == "primary":
+            return f"""
+            QPushButton {{
+                background: {ModernColors.GRADIENT_PRIMARY};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: none;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 600;
+                border-radius: 8px;
+                min-height: 20px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7c3aed, stop:1 #6366f1);
+            }}
+            QPushButton:pressed {{
+                background: {ModernColors.PRIMARY_DARK};
+            }}
+            QPushButton:disabled {{
+                background-color: {ModernColors.SURFACE_LIGHT};
+                color: {ModernColors.TEXT_MUTED};
+            }}
+            """
+        elif button_type == "success":
+            return f"""
+            QPushButton {{
+                background: {ModernColors.GRADIENT_SUCCESS};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: none;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 600;
+                border-radius: 8px;
+                min-height: 20px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #059669, stop:1 #10b981);
+            }}
+            QPushButton:pressed {{
+                background: {ModernColors.SUCCESS_DARK};
+            }}
+            """
+        elif button_type == "warning":
+            return f"""
+            QPushButton {{
+                background: {ModernColors.GRADIENT_WARNING};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: none;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 600;
+                border-radius: 8px;
+                min-height: 20px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #d97706, stop:1 #f59e0b);
+            }}
+            QPushButton:pressed {{
+                background: {ModernColors.WARNING_DARK};
+            }}
+            """
+        elif button_type == "error":
+            return f"""
+            QPushButton {{
+                background: {ModernColors.GRADIENT_ERROR};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: none;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 600;
+                border-radius: 8px;
+                min-height: 20px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #dc2626, stop:1 #ef4444);
+            }}
+            QPushButton:pressed {{
+                background: {ModernColors.ERROR_DARK};
+            }}
+            """
+        elif button_type == "secondary":
+            return f"""
+            QPushButton {{
+                background-color: {ModernColors.SURFACE_LIGHT};
+                color: {ModernColors.TEXT_PRIMARY};
+                border: 1px solid {ModernColors.BORDER};
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 600;
+                border-radius: 8px;
+                min-height: 20px;
+            }}
+            QPushButton:hover {{
+                background-color: {ModernColors.SURFACE};
+                border-color: {ModernColors.PRIMARY};
+            }}
+            QPushButton:pressed {{
+                background-color: {ModernColors.BORDER};
+            }}
+            """
+    
+    @staticmethod
+    def get_input_style():
+        """Стиль полей ввода"""
+        return f"""
+        QLineEdit, QSpinBox, QComboBox {{
+            background-color: {ModernColors.SURFACE_LIGHT};
+            color: {ModernColors.TEXT_PRIMARY};
+            border: 2px solid {ModernColors.BORDER};
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            min-height: 20px;
+        }}
+        
+        QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{
+            border-color: {ModernColors.PRIMARY};
+            background-color: {ModernColors.SURFACE};
+        }}
+        
+        QComboBox::drop-down {{
+            border: none;
+            background-color: {ModernColors.PRIMARY};
+            border-radius: 0 6px 6px 0;
+            width: 20px;
+        }}
+        
+        QComboBox::down-arrow {{
+            image: none;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid {ModernColors.TEXT_PRIMARY};
+            margin-right: 5px;
+        }}
+        
+        QComboBox QAbstractItemView {{
+            background-color: {ModernColors.SURFACE};
+            border: 1px solid {ModernColors.BORDER};
+            border-radius: 8px;
+            selection-background-color: {ModernColors.PRIMARY};
+        }}
+        """
+    
+    @staticmethod
+    def get_progress_bar_style():
+        """Стиль прогресс-бара"""
+        return f"""
+        QProgressBar {{
+            border: 2px solid {ModernColors.BORDER};
+            border-radius: 8px;
+            text-align: center;
+            background-color: {ModernColors.SURFACE_LIGHT};
+            color: {ModernColors.TEXT_PRIMARY};
+            font-weight: 600;
+        }}
+        
+        QProgressBar::chunk {{
+            background: {ModernColors.GRADIENT_PRIMARY};
+            border-radius: 6px;
+        }}
+        """
+    
+    @staticmethod
+    def get_table_style():
+        """Стиль таблиц"""
+        return f"""
+        QTableWidget {{
+            background-color: {ModernColors.SURFACE};
+            color: {ModernColors.TEXT_PRIMARY};
+            border: 1px solid {ModernColors.BORDER};
+            border-radius: 8px;
+            gridline-color: {ModernColors.BORDER};
+            selection-background-color: {ModernColors.PRIMARY};
+        }}
+        
+        QTableWidget::item {{
+            padding: 8px;
+            border-bottom: 1px solid {ModernColors.BORDER};
+        }}
+        
+        QTableWidget::item:selected {{
+            background-color: {ModernColors.PRIMARY};
+            color: {ModernColors.TEXT_PRIMARY};
+        }}
+        
+        QHeaderView::section {{
+            background-color: {ModernColors.SURFACE_LIGHT};
+            color: {ModernColors.TEXT_PRIMARY};
+            padding: 8px;
+            border: none;
+            border-right: 1px solid {ModernColors.BORDER};
+            font-weight: 600;
+        }}
+        
+        QHeaderView::section:first {{
+            border-top-left-radius: 8px;
+        }}
+        
+        QHeaderView::section:last {{
+            border-top-right-radius: 8px;
+            border-right: none;
+        }}
+        """
 
 
 class EvaluationWorker(QThread):
@@ -127,10 +435,26 @@ class ResultsPlotWidget(QWidget):
     
     def setup_ui(self):
         layout = QVBoxLayout()
+        layout.setContentsMargins(16, 16, 16, 16)
         
-        # Создаем matplotlib canvas
-        self.figure = Figure(figsize=(12, 8))
+        # Заголовок графика
+        header_label = QLabel("📈 Визуализация результатов")
+        header_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_PRIMARY};
+                font-size: 16px;
+                font-weight: 600;
+                padding: 8px 0px;
+            }}
+        """)
+        layout.addWidget(header_label)
+        
+        # Создаем matplotlib canvas с современными настройками
+        self.figure = Figure(figsize=(12, 8), facecolor=ModernColors.SURFACE)
         self.canvas = FigureCanvas(self.figure)
+        
+        # Настройка стиля matplotlib для тёмной темы
+        plt.style.use('dark_background')
         
         layout.addWidget(self.canvas)
         self.setLayout(layout)
@@ -139,41 +463,75 @@ class ResultsPlotWidget(QWidget):
         """Построение графиков результатов"""
         self.figure.clear()
         
+        # Настройка цветовой схемы
+        colors = {
+            'primary': ModernColors.PRIMARY,
+            'success': ModernColors.SUCCESS,
+            'warning': ModernColors.WARNING,
+            'error': ModernColors.ERROR,
+            'text': ModernColors.TEXT_PRIMARY,
+            'text_secondary': ModernColors.TEXT_SECONDARY,
+            'surface': ModernColors.SURFACE,
+            'border': ModernColors.BORDER
+        }
+        
         # Создаем 2x2 сетку графиков
         axes = self.figure.subplots(2, 2)
         
+        # Настройка общего стиля
+        for ax in axes.flat:
+            ax.set_facecolor(ModernColors.SURFACE_LIGHT)
+            ax.tick_params(colors=colors['text_secondary'])
+            ax.spines['bottom'].set_color(colors['border'])
+            ax.spines['top'].set_color(colors['border'])
+            ax.spines['right'].set_color(colors['border'])
+            ax.spines['left'].set_color(colors['border'])
+        
         # Распределение WER
-        axes[0, 0].hist(results['wer_scores'], bins=30, alpha=0.7, color='#3498db', edgecolor='black')
-        axes[0, 0].set_title('Распределение WER', fontsize=12, fontweight='bold')
-        axes[0, 0].set_xlabel('WER (%)')
-        axes[0, 0].set_ylabel('Частота')
-        axes[0, 0].grid(True, alpha=0.3)
+        axes[0, 0].hist(results['wer_scores'], bins=30, alpha=0.8, 
+                       color=colors['primary'], edgecolor=colors['border'], linewidth=1)
+        axes[0, 0].set_title('Распределение WER', fontsize=14, fontweight='bold', color=colors['text'])
+        axes[0, 0].set_xlabel('WER (%)', color=colors['text_secondary'])
+        axes[0, 0].set_ylabel('Частота', color=colors['text_secondary'])
+        axes[0, 0].grid(True, alpha=0.3, color=colors['border'])
         
         # Распределение CER
-        axes[0, 1].hist(results['cer_scores'], bins=30, alpha=0.7, color='#e74c3c', edgecolor='black')
-        axes[0, 1].set_title('Распределение CER', fontsize=12, fontweight='bold')
-        axes[0, 1].set_xlabel('CER (%)')
-        axes[0, 1].set_ylabel('Частота')
-        axes[0, 1].grid(True, alpha=0.3)
+        axes[0, 1].hist(results['cer_scores'], bins=30, alpha=0.8, 
+                       color=colors['error'], edgecolor=colors['border'], linewidth=1)
+        axes[0, 1].set_title('Распределение CER', fontsize=14, fontweight='bold', color=colors['text'])
+        axes[0, 1].set_xlabel('CER (%)', color=colors['text_secondary'])
+        axes[0, 1].set_ylabel('Частота', color=colors['text_secondary'])
+        axes[0, 1].grid(True, alpha=0.3, color=colors['border'])
         
         # Сравнение WER и CER
-        axes[1, 0].scatter(results['wer_scores'], results['cer_scores'], 
-                          alpha=0.6, color='#9b59b6', s=50)
-        axes[1, 0].set_title('WER vs CER', fontsize=12, fontweight='bold')
-        axes[1, 0].set_xlabel('WER (%)')
-        axes[1, 0].set_ylabel('CER (%)')
-        axes[1, 0].grid(True, alpha=0.3)
+        scatter = axes[1, 0].scatter(results['wer_scores'], results['cer_scores'], 
+                                   alpha=0.7, color=colors['warning'], s=60, 
+                                   edgecolors=colors['border'], linewidth=0.5)
+        axes[1, 0].set_title('WER vs CER', fontsize=14, fontweight='bold', color=colors['text'])
+        axes[1, 0].set_xlabel('WER (%)', color=colors['text_secondary'])
+        axes[1, 0].set_ylabel('CER (%)', color=colors['text_secondary'])
+        axes[1, 0].grid(True, alpha=0.3, color=colors['border'])
         
         # Box plot метрик
         data_for_box = [results['wer_scores'], results['cer_scores']]
         bp = axes[1, 1].boxplot(data_for_box, labels=['WER', 'CER'], patch_artist=True)
-        bp['boxes'][0].set_facecolor('#3498db')
-        bp['boxes'][1].set_facecolor('#e74c3c')
-        axes[1, 1].set_title('Распределение метрик', fontsize=12, fontweight='bold')
-        axes[1, 1].set_ylabel('Процент ошибок')
-        axes[1, 1].grid(True, alpha=0.3)
+        bp['boxes'][0].set_facecolor(colors['primary'])
+        bp['boxes'][0].set_alpha(0.8)
+        bp['boxes'][1].set_facecolor(colors['error'])
+        bp['boxes'][1].set_alpha(0.8)
         
-        self.figure.tight_layout()
+        # Стилизация элементов box plot
+        for element in ['whiskers', 'fliers', 'medians', 'caps']:
+            plt.setp(bp[element], color=colors['border'])
+        
+        axes[1, 1].set_title('Распределение метрик', fontsize=14, fontweight='bold', color=colors['text'])
+        axes[1, 1].set_ylabel('Процент ошибок', color=colors['text_secondary'])
+        axes[1, 1].grid(True, alpha=0.3, color=colors['border'])
+        
+        # Настройка общего стиля фигуры
+        self.figure.patch.set_facecolor(ModernColors.SURFACE)
+        
+        self.figure.tight_layout(pad=2.0)
         self.canvas.draw()
 
 
@@ -194,18 +552,24 @@ class MainWindow(QMainWindow):
         
     def setup_ui(self):
         """Настройка пользовательского интерфейса"""
-        self.setWindowTitle("TrOCR Evaluation Tool")
-        self.setGeometry(100, 100, 1400, 900)
+        self.setWindowTitle("TrOCR Evaluation Tool - Modern UI")
+        self.setGeometry(100, 100, 1600, 1000)
+        
+        # Применяем современные стили
+        self.setStyleSheet(ModernStyles.get_main_window_style())
         
         # Центральный виджет с вкладками
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Главный layout
+        # Главный layout с отступами
         main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(16)
         
         # Создаем вкладки
         self.tab_widget = QTabWidget()
+        self.tab_widget.setStyleSheet(ModernStyles.get_main_window_style())
         main_layout.addWidget(self.tab_widget)
         
         # Вкладка настроек
@@ -217,29 +581,83 @@ class MainWindow(QMainWindow):
         # Вкладка детальных результатов
         self.setup_details_tab()
         
-        # Статус бар
+        # Статус бар с современным стилем
+        self.statusBar().setStyleSheet(f"""
+            QStatusBar {{
+                background-color: {ModernColors.SURFACE};
+                color: {ModernColors.TEXT_SECONDARY};
+                border-top: 1px solid {ModernColors.BORDER};
+                padding: 8px;
+            }}
+        """)
         self.statusBar().showMessage("Готов к работе")
+        
+        # Добавляем анимацию появления окна
+        self.setup_animations()
+    
+    def setup_animations(self):
+        """Настройка анимаций для плавных переходов"""
+        # Анимация появления окна
+        self.fade_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_animation.setDuration(300)
+        self.fade_animation.setStartValue(0.0)
+        self.fade_animation.setEndValue(1.0)
+        self.fade_animation.setEasingCurve(QEasingCurve.OutCubic)
+        
+        # Анимация для прогресс-бара
+        self.progress_animation = QPropertyAnimation(self.progress_bar, b"value")
+        self.progress_animation.setDuration(200)
+        self.progress_animation.setEasingCurve(QEasingCurve.OutQuad)
+        
+    def showEvent(self, event):
+        """Обработчик события показа окна"""
+        super().showEvent(event)
+        # Запускаем анимацию появления
+        self.fade_animation.start()
         
     def setup_settings_tab(self):
         """Настройка вкладки с параметрами"""
         settings_widget = QWidget()
         layout = QVBoxLayout(settings_widget)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(20)
         
         # Группа выбора модели
-        model_group = QGroupBox("Выбор модели")
+        model_group = QGroupBox("🤖 Выбор модели")
+        model_group.setStyleSheet(ModernStyles.get_group_box_style())
         model_layout = QGridLayout(model_group)
+        model_layout.setSpacing(12)
+        model_layout.setContentsMargins(20, 20, 20, 20)
         
-        model_layout.addWidget(QLabel("Модель TrOCR:"), 0, 0)
+        # Заголовок модели
+        model_label = QLabel("🤖 Модель TrOCR:")
+        model_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_PRIMARY};
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """)
+        model_layout.addWidget(model_label, 0, 0)
+        
         self.model_combo = QComboBox()
         self.model_combo.addItems([
             "microsoft/trocr-base-handwritten",
             "microsoft/trocr-large-handwritten"
         ])
+        self.model_combo.setStyleSheet(ModernStyles.get_input_style())
         model_layout.addWidget(self.model_combo, 0, 1)
         
         # Информация о модели
         self.model_info_label = QLabel("Base модель: быстрее, меньше размер")
-        self.model_info_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        self.model_info_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_MUTED};
+                font-style: italic;
+                font-size: 12px;
+                padding: 4px 0px;
+            }}
+        """)
         model_layout.addWidget(self.model_info_label, 1, 1)
         
         # Обновляем информацию при изменении модели
@@ -248,135 +666,118 @@ class MainWindow(QMainWindow):
         layout.addWidget(model_group)
         
         # Группа выбора датасета
-        dataset_group = QGroupBox("Настройки датасета")
+        dataset_group = QGroupBox("📁 Настройки датасета")
+        dataset_group.setStyleSheet(ModernStyles.get_group_box_style())
         dataset_layout = QGridLayout(dataset_group)
+        dataset_layout.setSpacing(12)
+        dataset_layout.setContentsMargins(20, 20, 20, 20)
         
-        dataset_layout.addWidget(QLabel("Путь к изображениям:"), 0, 0)
+        # Путь к изображениям
+        dataset_label = QLabel("Путь к изображениям:")
+        dataset_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_PRIMARY};
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """)
+        dataset_layout.addWidget(dataset_label, 0, 0)
+        
         self.dataset_path_edit = QLineEdit("IAM/image")
-        self.dataset_browse_btn = QPushButton("Обзор...")
+        self.dataset_path_edit.setStyleSheet(ModernStyles.get_input_style())
         dataset_layout.addWidget(self.dataset_path_edit, 0, 1)
+        
+        self.dataset_browse_btn = QPushButton("📂 Обзор...")
+        self.dataset_browse_btn.setStyleSheet(ModernStyles.get_button_style("secondary"))
         dataset_layout.addWidget(self.dataset_browse_btn, 0, 2)
         
-        dataset_layout.addWidget(QLabel("Файл аннотаций:"), 1, 0)
+        # Файл аннотаций
+        annotations_label = QLabel("Файл аннотаций:")
+        annotations_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_PRIMARY};
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """)
+        dataset_layout.addWidget(annotations_label, 1, 0)
+        
         self.annotations_path_edit = QLineEdit("IAM/gt_test.txt")
-        self.annotations_browse_btn = QPushButton("Обзор...")
+        self.annotations_path_edit.setStyleSheet(ModernStyles.get_input_style())
         dataset_layout.addWidget(self.annotations_path_edit, 1, 1)
+        
+        self.annotations_browse_btn = QPushButton("📄 Обзор...")
+        self.annotations_browse_btn.setStyleSheet(ModernStyles.get_button_style("secondary"))
         dataset_layout.addWidget(self.annotations_browse_btn, 1, 2)
         
-        dataset_layout.addWidget(QLabel("Количество изображений:"), 2, 0)
+        # Количество изображений
+        limit_label = QLabel("Количество изображений:")
+        limit_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_PRIMARY};
+                font-size: 14px;
+                font-weight: 600;
+            }}
+        """)
+        dataset_layout.addWidget(limit_label, 2, 0)
+        
         self.limit_spinbox = QSpinBox()
         self.limit_spinbox.setRange(1, 1000)
         self.limit_spinbox.setValue(50)
+        self.limit_spinbox.setStyleSheet(ModernStyles.get_input_style())
         dataset_layout.addWidget(self.limit_spinbox, 2, 1)
         
         layout.addWidget(dataset_group)
         
         # Группа управления
-        control_group = QGroupBox("Управление")
+        control_group = QGroupBox("🎮 Управление")
+        control_group.setStyleSheet(ModernStyles.get_group_box_style())
         control_layout = QVBoxLayout(control_group)
+        control_layout.setSpacing(16)
+        control_layout.setContentsMargins(20, 20, 20, 20)
         
         # Прогресс бар
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
+        self.progress_bar.setStyleSheet(ModernStyles.get_progress_bar_style())
         control_layout.addWidget(self.progress_bar)
         
         # Статус
         self.status_label = QLabel("Готов к запуску")
+        self.status_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_SECONDARY};
+                font-size: 14px;
+                font-weight: 500;
+                padding: 8px 0px;
+            }}
+        """)
         control_layout.addWidget(self.status_label)
         
-        # Кнопки
-        button_layout = QHBoxLayout()
+        # Кнопки в сетке
+        button_layout = QGridLayout()
+        button_layout.setSpacing(12)
         
         self.start_btn = QPushButton("🚀 Запустить оценку")
-        self.start_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #2ecc71;
-            }
-            QPushButton:pressed {
-                background-color: #229954;
-            }
-        """)
+        self.start_btn.setStyleSheet(ModernStyles.get_button_style("success"))
+        button_layout.addWidget(self.start_btn, 0, 0)
         
         self.stop_btn = QPushButton("⏹️ Остановить")
         self.stop_btn.setEnabled(False)
-        self.stop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #ec7063;
-            }
-        """)
+        self.stop_btn.setStyleSheet(ModernStyles.get_button_style("error"))
+        button_layout.addWidget(self.stop_btn, 0, 1)
         
         self.save_settings_btn = QPushButton("💾 Сохранить настройки")
-        self.save_settings_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #5dade2;
-            }
-        """)
+        self.save_settings_btn.setStyleSheet(ModernStyles.get_button_style("primary"))
+        button_layout.addWidget(self.save_settings_btn, 1, 0)
         
         self.load_settings_btn = QPushButton("📁 Загрузить настройки")
-        self.load_settings_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #9b59b6;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #bb8fce;
-            }
-        """)
+        self.load_settings_btn.setStyleSheet(ModernStyles.get_button_style("primary"))
+        button_layout.addWidget(self.load_settings_btn, 1, 1)
         
-        self.open_general_results_btn = QPushButton("📂 Открыть общую папку results")
-        self.open_general_results_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f39c12;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #f7dc6f;
-            }
-        """)
-        
-        button_layout.addWidget(self.start_btn)
-        button_layout.addWidget(self.stop_btn)
-        button_layout.addWidget(self.save_settings_btn)
-        button_layout.addWidget(self.load_settings_btn)
-        button_layout.addWidget(self.open_general_results_btn)
-        button_layout.addStretch()
+        self.open_general_results_btn = QPushButton("📂 Открыть папку results")
+        self.open_general_results_btn.setStyleSheet(ModernStyles.get_button_style("warning"))
+        button_layout.addWidget(self.open_general_results_btn, 2, 0, 1, 2)
         
         control_layout.addLayout(button_layout)
         layout.addWidget(control_group)
@@ -388,9 +789,20 @@ class MainWindow(QMainWindow):
         """Настройка вкладки с результатами"""
         results_widget = QWidget()
         layout = QVBoxLayout(results_widget)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(16)
         
         # Создаем splitter для разделения на графики и метрики
         splitter = QSplitter(Qt.Horizontal)
+        splitter.setStyleSheet(f"""
+            QSplitter::handle {{
+                background-color: {ModernColors.BORDER};
+                width: 2px;
+            }}
+            QSplitter::handle:hover {{
+                background-color: {ModernColors.PRIMARY};
+            }}
+        """)
         
         # Левая панель - графики
         self.plot_widget = ResultsPlotWidget()
@@ -399,10 +811,15 @@ class MainWindow(QMainWindow):
         # Правая панель - метрики
         metrics_widget = QWidget()
         metrics_layout = QVBoxLayout(metrics_widget)
+        metrics_layout.setContentsMargins(16, 16, 16, 16)
+        metrics_layout.setSpacing(16)
         
         # Группа основных метрик
-        metrics_group = QGroupBox("Основные метрики")
+        metrics_group = QGroupBox("📊 Основные метрики")
+        metrics_group.setStyleSheet(ModernStyles.get_group_box_style())
         metrics_group_layout = QGridLayout(metrics_group)
+        metrics_group_layout.setSpacing(8)
+        metrics_group_layout.setContentsMargins(20, 20, 20, 20)
         
         # Создаем лейблы для метрик
         self.metrics_labels = {}
@@ -422,20 +839,53 @@ class MainWindow(QMainWindow):
         ]
         
         for i, (key, label_text) in enumerate(metrics):
-            metrics_group_layout.addWidget(QLabel(label_text), i, 0)
+            # Лейбл названия метрики
+            label = QLabel(label_text)
+            label.setStyleSheet(f"""
+                QLabel {{
+                    color: {ModernColors.TEXT_SECONDARY};
+                    font-size: 13px;
+                    font-weight: 500;
+                }}
+            """)
+            metrics_group_layout.addWidget(label, i, 0)
+            
+            # Лейбл значения метрики
             value_label = QLabel("—")
-            value_label.setStyleSheet("font-weight: bold; color: #3498db;")
+            value_label.setStyleSheet(f"""
+                QLabel {{
+                    font-weight: 700;
+                    color: {ModernColors.PRIMARY};
+                    font-size: 14px;
+                    background-color: {ModernColors.SURFACE_LIGHT};
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    border: 1px solid {ModernColors.BORDER};
+                }}
+            """)
             self.metrics_labels[key] = value_label
             metrics_group_layout.addWidget(value_label, i, 1)
         
         metrics_layout.addWidget(metrics_group)
         
         # Группа оценки качества
-        quality_group = QGroupBox("Оценка качества")
+        quality_group = QGroupBox("🎯 Оценка качества")
+        quality_group.setStyleSheet(ModernStyles.get_group_box_style())
         quality_layout = QVBoxLayout(quality_group)
+        quality_layout.setContentsMargins(20, 20, 20, 20)
+        quality_layout.setSpacing(12)
         
         self.quality_label = QLabel("Запустите оценку для получения результатов")
-        self.quality_label.setStyleSheet("font-size: 14px; padding: 10px;")
+        self.quality_label.setStyleSheet(f"""
+            QLabel {{
+                font-size: 14px;
+                padding: 12px;
+                color: {ModernColors.TEXT_SECONDARY};
+                background-color: {ModernColors.SURFACE_LIGHT};
+                border-radius: 8px;
+                border: 1px solid {ModernColors.BORDER};
+            }}
+        """)
         self.quality_label.setWordWrap(True)
         quality_layout.addWidget(self.quality_label)
         
@@ -444,24 +894,7 @@ class MainWindow(QMainWindow):
         # Кнопка открытия папки с результатами
         self.open_results_btn = QPushButton("📂 Открыть папку с результатами")
         self.open_results_btn.setEnabled(False)
-        self.open_results_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                border: none;
-                padding: 15px 25px;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 8px;
-            }
-            QPushButton:hover {
-                background-color: #ec7063;
-            }
-            QPushButton:disabled {
-                background-color: #bdc3c7;
-                color: #7f8c8d;
-            }
-        """)
+        self.open_results_btn.setStyleSheet(ModernStyles.get_button_style("error"))
         
         metrics_layout.addWidget(self.open_results_btn)
         metrics_layout.addStretch()
@@ -476,6 +909,20 @@ class MainWindow(QMainWindow):
         """Настройка вкладки с детальными результатами"""
         details_widget = QWidget()
         layout = QVBoxLayout(details_widget)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(16)
+        
+        # Заголовок вкладки
+        header_label = QLabel("📋 Детальные результаты оценки")
+        header_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernColors.TEXT_PRIMARY};
+                font-size: 18px;
+                font-weight: 700;
+                padding: 8px 0px;
+            }}
+        """)
+        layout.addWidget(header_label)
         
         # Таблица с детальными результатами
         self.results_table = QTableWidget()
@@ -483,6 +930,9 @@ class MainWindow(QMainWindow):
         self.results_table.setHorizontalHeaderLabels([
             "Эталонный текст", "Распознанный текст", "WER (%)", "CER (%)", "Точность (символы) (%)", "Точность (слова) (%)"
         ])
+        
+        # Применяем современные стили к таблице
+        self.results_table.setStyleSheet(ModernStyles.get_table_style())
         
         # Настройка таблицы
         header = self.results_table.horizontalHeader()
@@ -492,6 +942,11 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        
+        # Дополнительные настройки таблицы
+        self.results_table.setAlternatingRowColors(True)
+        self.results_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.results_table.setSortingEnabled(True)
         
         layout.addWidget(self.results_table)
         self.tab_widget.addTab(details_widget, "📋 Детали")
@@ -602,8 +1057,12 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Оценка остановлена")
     
     def update_progress(self, value, status_text):
-        """Обновление прогресса"""
-        self.progress_bar.setValue(value)
+        """Обновление прогресса с анимацией"""
+        # Анимированное обновление прогресс-бара
+        self.progress_animation.setStartValue(self.progress_bar.value())
+        self.progress_animation.setEndValue(value)
+        self.progress_animation.start()
+        
         self.status_label.setText(status_text)
         self.statusBar().showMessage(status_text)
         
@@ -899,8 +1358,56 @@ def main():
     """Главная функция"""
     app = QApplication(sys.argv)
     
-    # Применяем темную тему
+    # Применяем современную темную тему
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+    
+    # Дополнительные стили для приложения
+    app.setStyleSheet(app.styleSheet() + f"""
+        QApplication {{
+            background-color: {ModernColors.BACKGROUND};
+            color: {ModernColors.TEXT_PRIMARY};
+        }}
+        
+        QScrollBar:vertical {{
+            background-color: {ModernColors.SURFACE_LIGHT};
+            width: 12px;
+            border-radius: 6px;
+        }}
+        
+        QScrollBar::handle:vertical {{
+            background-color: {ModernColors.BORDER};
+            border-radius: 6px;
+            min-height: 20px;
+        }}
+        
+        QScrollBar::handle:vertical:hover {{
+            background-color: {ModernColors.PRIMARY};
+        }}
+        
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+            height: 0px;
+        }}
+        
+        QScrollBar:horizontal {{
+            background-color: {ModernColors.SURFACE_LIGHT};
+            height: 12px;
+            border-radius: 6px;
+        }}
+        
+        QScrollBar::handle:horizontal {{
+            background-color: {ModernColors.BORDER};
+            border-radius: 6px;
+            min-width: 20px;
+        }}
+        
+        QScrollBar::handle:horizontal:hover {{
+            background-color: {ModernColors.PRIMARY};
+        }}
+        
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+            width: 0px;
+        }}
+    """)
     
     # Создаем и показываем главное окно
     window = MainWindow()
