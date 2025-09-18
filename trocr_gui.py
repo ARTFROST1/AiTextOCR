@@ -1460,7 +1460,7 @@ class MainWindow(QMainWindow):
             self.progress_bar.setValue(0)
             
             # Создаем папку для результатов
-            self.current_results_folder = self.create_results_folder(model_name)
+            self.current_results_folder = self.create_results_folder(model_name, dataset_path)
             
             # Запоминаем время начала
             import time
@@ -1739,12 +1739,13 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "❌ Ошибка", f"Ошибка при загрузке профиля:\n{str(e)}")
                 print(f"❌ Ошибка загрузки профиля: {e}")
     
-    def create_results_folder(self, model_name: str) -> str:
+    def create_results_folder(self, model_name: str, dataset_path: str = None) -> str:
         """
-        Создание папки для результатов с датой/временем и названием модели
+        Создание папки для результатов с датой/временем, названием модели и датасета
         
         Args:
             model_name: Название модели
+            dataset_path: Путь к датасету (опционально)
             
         Returns:
             Путь к созданной папке
@@ -1761,8 +1762,24 @@ class MainWindow(QMainWindow):
         model_short = model_name.split("/")[-1] if "/" in model_name else model_name
         model_short = model_short.replace("microsoft-", "").replace("trocr-", "")
         
+        # Извлекаем название датасета из пути
+        dataset_short = "unknown"
+        if dataset_path:
+            # Берем последнюю часть пути (имя папки)
+            dataset_short = os.path.basename(dataset_path.rstrip('/\\'))
+            # Если это стандартный IAM, делаем более читаемым
+            if dataset_short.lower() in ['image', 'images']:
+                dataset_short = "IAM"
+            elif dataset_short.lower() in ['test', 'train', 'val']:
+                # Если это подпапка, берем родительскую папку
+                parent_dir = os.path.basename(os.path.dirname(dataset_path))
+                if parent_dir.lower() in ['iam', 'dataset']:
+                    dataset_short = f"IAM-{dataset_short}"
+                else:
+                    dataset_short = f"{parent_dir}-{dataset_short}"
+        
         # Создаем название папки
-        folder_name = f"{timestamp}_{model_short}"
+        folder_name = f"{timestamp}_{dataset_short}_{model_short}"
         folder_path = results_base / folder_name
         
         # Создаем папку
