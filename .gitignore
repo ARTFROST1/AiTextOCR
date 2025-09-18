@@ -1,0 +1,67 @@
+# Virtual environments
+venv/
+venv_cuda/
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE/editor
+.vscode/
+.idea/
+*.code-workspace
+
+# Datasets and large local data
+IAM/image/
+iam_dataset/
+
+# Results and plots (generated)
+results/
+plots/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# HuggingFace / cache folders in project if any
+.cache/
+cache/
+
+# Виртуальное окружение
+venv/
+.venv/
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Временные файлы
+*.tmp
+*.temp
+*.log
+
+# IDE файлы
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Операционная система
+.DS_Store
+Thumbs.db
+
+# Результаты (если не хотите коммитить)
+# results/
+
+# Кэш KaggleHub
+.cache/
