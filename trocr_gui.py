@@ -1185,14 +1185,12 @@ class MainWindow(QMainWindow):
         button_layout = QGridLayout()
         button_layout.setSpacing(12)
         
-        self.start_btn = QPushButton("🚀 Запустить оценку")
-        self.start_btn.setStyleSheet(ModernStyles.get_button_style("success"))
-        button_layout.addWidget(self.start_btn, 0, 0)
-        
-        self.stop_btn = QPushButton("⏹️ Остановить")
-        self.stop_btn.setEnabled(False)
-        self.stop_btn.setStyleSheet(ModernStyles.get_button_style("error"))
-        button_layout.addWidget(self.stop_btn, 0, 1)
+        # Большая главная кнопка запуска/остановки
+        self.main_action_btn = QPushButton("🚀 Запустить оценку")
+        self.main_action_btn.setStyleSheet(ModernStyles.get_button_style("success"))
+        self.main_action_btn.setMinimumHeight(50)  # Делаем кнопку выше
+        self.main_action_btn.setFont(QFont("Arial", 14, QFont.Bold))  # Больший шрифт
+        button_layout.addWidget(self.main_action_btn, 0, 0, 1, 2)  # Занимает 2 колонки
         
         self.save_settings_btn = QPushButton("💾 Сохранить профиль")
         self.save_settings_btn.setStyleSheet(ModernStyles.get_button_style("primary"))
@@ -1216,7 +1214,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.console_widget)
         
         layout.addStretch()
-        self.tab_widget.addTab(settings_widget, "⚙️ Настройки")
+        self.tab_widget.addTab(settings_widget, "🏠 Главная")
     
     def setup_results_tab(self):
         """Настройка вкладки с результатами"""
@@ -1386,8 +1384,7 @@ class MainWindow(QMainWindow):
     
     def setup_connections(self):
         """Настройка соединений сигналов и слотов"""
-        self.start_btn.clicked.connect(self.start_evaluation)
-        self.stop_btn.clicked.connect(self.stop_evaluation)
+        self.main_action_btn.clicked.connect(self.toggle_evaluation)
         self.dataset_browse_btn.clicked.connect(self.browse_dataset)
         self.annotations_browse_btn.clicked.connect(self.browse_annotations)
         self.save_settings_btn.clicked.connect(self.save_settings)
@@ -1431,6 +1428,15 @@ class MainWindow(QMainWindow):
         if file_path:
             self.annotations_path_edit.setText(file_path)
     
+    def toggle_evaluation(self):
+        """Переключение между запуском и остановкой оценки"""
+        if self.worker_thread and self.worker_thread.isRunning():
+            # Если процесс запущен, останавливаем его
+            self.stop_evaluation()
+        else:
+            # Если процесс не запущен, запускаем его
+            self.start_evaluation()
+    
     def start_evaluation(self):
         """Запуск оценки"""
         try:
@@ -1454,8 +1460,8 @@ class MainWindow(QMainWindow):
             self.evaluator = TrOCREvaluator(model_name)
             
             # Настраиваем UI
-            self.start_btn.setEnabled(False)
-            self.stop_btn.setEnabled(True)
+            self.main_action_btn.setText("⏹️ Остановить")
+            self.main_action_btn.setStyleSheet(ModernStyles.get_button_style("error"))
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             
@@ -1549,8 +1555,8 @@ class MainWindow(QMainWindow):
     
     def reset_ui(self):
         """Сброс UI в исходное состояние"""
-        self.start_btn.setEnabled(True)
-        self.stop_btn.setEnabled(False)
+        self.main_action_btn.setText("🚀 Запустить оценку")
+        self.main_action_btn.setStyleSheet(ModernStyles.get_button_style("success"))
         self.progress_bar.setVisible(False)
         # Не деактивируем кнопку открытия папки, чтобы можно было открыть последние результаты
     
