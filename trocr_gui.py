@@ -8,6 +8,9 @@ import os
 import json
 import time
 import threading
+import subprocess
+import platform
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -40,12 +43,13 @@ class EvaluationWorker(QThread):
     evaluation_completed = pyqtSignal(dict, dict)  # results, stats
     error_occurred = pyqtSignal(str)
     
-    def __init__(self, evaluator, dataset_path, annotations_file, limit):
+    def __init__(self, evaluator, dataset_path, annotations_file, limit, results_folder):
         super().__init__()
         self.evaluator = evaluator
         self.dataset_path = dataset_path
         self.annotations_file = annotations_file
         self.limit = limit
+        self.results_folder = results_folder
         self.is_running = True
     
     def run(self):
@@ -74,6 +78,14 @@ class EvaluationWorker(QThread):
             if not self.is_running:
                 return
                 
+            self.progress_updated.emit(90, "Сохранение результатов...")
+            
+            # Сохранение результатов в новую папку
+            self.save_results_to_folder(results, stats)
+            
+            if not self.is_running:
+                return
+                
             self.progress_updated.emit(100, "Оценка завершена!")
             
             # Эмитируем результаты
@@ -81,6 +93,26 @@ class EvaluationWorker(QThread):
             
         except Exception as e:
             self.error_occurred.emit(str(e))
+    
+    def save_results_to_folder(self, results, stats):
+        """Сохранение результатов в папку"""
+        try:
+            # Пути к файлам в новой папке
+            json_path = os.path.join(self.results_folder, "evaluation_results.json")
+            csv_path = os.path.join(self.results_folder, "evaluation_results.csv")
+            png_path = os.path.join(self.results_folder, "evaluation_plots.png")
+            
+            # Сохраняем результаты
+            self.evaluator.save_results(results, stats, json_path)
+            
+            # Создаем графики
+            self.evaluator.plot_results(results, png_path, show=False)
+            
+            print(f"💾 Результаты сохранены в папку: {self.results_folder}")
+            
+        except Exception as e:
+            print(f"❌ Ошибка при сохранении результатов: {e}")
+            raise e
     
     def stop(self):
         self.is_running = False
@@ -155,6 +187,7 @@ class MainWindow(QMainWindow):
         self.current_stats = None
         self.worker_thread = None
         self.start_time = None  # Время начала оценки
+        self.current_results_folder = None  # Текущая папка с результатами
         
         self.setup_ui()
         self.setup_connections()
@@ -322,10 +355,27 @@ class MainWindow(QMainWindow):
             }
         """)
         
+        self.open_general_results_btn = QPushButton("📂 Открыть общую папку results")
+        self.open_general_results_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #f7dc6f;
+            }
+        """)
+        
         button_layout.addWidget(self.start_btn)
         button_layout.addWidget(self.stop_btn)
         button_layout.addWidget(self.save_settings_btn)
         button_layout.addWidget(self.load_settings_btn)
+        button_layout.addWidget(self.open_general_results_btn)
         button_layout.addStretch()
         
         control_layout.addLayout(button_layout)
@@ -390,6 +440,30 @@ class MainWindow(QMainWindow):
         quality_layout.addWidget(self.quality_label)
         
         metrics_layout.addWidget(quality_group)
+        
+        # Кнопка открытия папки с результатами
+        self.open_results_btn = QPushButton("📂 Открыть папку с результатами")
+        self.open_results_btn.setEnabled(False)
+        self.open_results_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                border: none;
+                padding: 15px 25px;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 8px;
+            }
+            QPushButton:hover {
+                background-color: #ec7063;
+            }
+            QPushButton:disabled {
+                background-color: #bdc3c7;
+                color: #7f8c8d;
+            }
+        """)
+        
+        metrics_layout.addWidget(self.open_results_btn)
         metrics_layout.addStretch()
         
         splitter.addWidget(metrics_widget)
@@ -430,6 +504,8 @@ class MainWindow(QMainWindow):
         self.annotations_browse_btn.clicked.connect(self.browse_annotations)
         self.save_settings_btn.clicked.connect(self.save_settings)
         self.load_settings_btn.clicked.connect(self.load_settings)
+        self.open_general_results_btn.clicked.connect(self.open_general_results_folder)
+        self.open_results_btn.clicked.connect(self.open_results_folder)
     
     def update_model_info(self, model_name):
         """Обновление информации о выбранной модели"""
@@ -485,6 +561,9 @@ class MainWindow(QMainWindow):
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             
+            # Создаем папку для результатов
+            self.current_results_folder = self.create_results_folder(model_name)
+            
             # Запоминаем время начала
             import time
             self.start_time = time.time()
@@ -497,11 +576,12 @@ class MainWindow(QMainWindow):
             print(f"📁 Датасет: {dataset_path}")
             print(f"📄 Аннотации: {annotations_file}")
             print(f"🔢 Количество изображений: {limit}")
+            print(f"📂 Папка результатов: {self.current_results_folder}")
             print("="*60)
             
             # Запускаем worker thread
             self.worker_thread = EvaluationWorker(
-                self.evaluator, dataset_path, annotations_file, limit
+                self.evaluator, dataset_path, annotations_file, limit, self.current_results_folder
             )
             self.worker_thread.progress_updated.connect(self.update_progress)
             self.worker_thread.evaluation_completed.connect(self.evaluation_finished)
@@ -550,6 +630,9 @@ class MainWindow(QMainWindow):
         self.reset_ui()
         self.status_label.setText("Оценка завершена успешно!")
         
+        # Активируем кнопку открытия папки с результатами
+        self.open_results_btn.setEnabled(True)
+        
         # Выводим результаты в консоль (как в оригинальном скрипте)
         self.print_results_to_console(results, stats)
         
@@ -567,6 +650,7 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.progress_bar.setVisible(False)
+        # Не деактивируем кнопку открытия папки, чтобы можно было открыть последние результаты
     
     def update_metrics(self, stats):
         """Обновление отображения метрик"""
@@ -659,9 +743,15 @@ class MainWindow(QMainWindow):
         
         # Информация о файлах
         print(f"\n💾 СОЗДАННЫЕ ФАЙЛЫ:")
-        print(f"📄 JSON: results/trocr_real_iam_evaluation.json")
-        print(f"📊 CSV:  results/trocr_real_iam_evaluation.csv")
-        print(f"📈 PNG:  results/evaluation_real_plots.png")
+        if self.current_results_folder:
+            print(f"📂 Папка результатов: {self.current_results_folder}")
+            print(f"📄 JSON: {os.path.join(self.current_results_folder, 'evaluation_results.json')}")
+            print(f"📊 CSV:  {os.path.join(self.current_results_folder, 'evaluation_results.csv')}")
+            print(f"📈 PNG:  {os.path.join(self.current_results_folder, 'evaluation_plots.png')}")
+        else:
+            print(f"📄 JSON: results/trocr_real_iam_evaluation.json")
+            print(f"📊 CSV:  results/trocr_real_iam_evaluation.csv")
+            print(f"📈 PNG:  results/evaluation_real_plots.png")
         
         print("\n" + "="*60)
         print("✅ ОЦЕНКА ЗАВЕРШЕНА УСПЕШНО!")
@@ -724,6 +814,85 @@ class MainWindow(QMainWindow):
                 
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", f"Ошибка при загрузке: {str(e)}")
+    
+    def create_results_folder(self, model_name: str) -> str:
+        """
+        Создание папки для результатов с датой/временем и названием модели
+        
+        Args:
+            model_name: Название модели
+            
+        Returns:
+            Путь к созданной папке
+        """
+        # Создаем базовую папку results если её нет
+        results_base = Path("results")
+        results_base.mkdir(exist_ok=True)
+        
+        # Получаем текущую дату и время
+        now = datetime.now()
+        timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+        
+        # Извлекаем короткое название модели
+        model_short = model_name.split("/")[-1] if "/" in model_name else model_name
+        model_short = model_short.replace("microsoft-", "").replace("trocr-", "")
+        
+        # Создаем название папки
+        folder_name = f"{timestamp}_{model_short}"
+        folder_path = results_base / folder_name
+        
+        # Создаем папку
+        folder_path.mkdir(exist_ok=True)
+        
+        print(f"📁 Создана папка результатов: {folder_path}")
+        return str(folder_path)
+    
+    def open_results_folder(self):
+        """Открытие папки с результатами в проводнике"""
+        if not self.current_results_folder:
+            QMessageBox.warning(self, "Предупреждение", "Нет результатов для открытия")
+            return
+        
+        try:
+            folder_path = Path(self.current_results_folder)
+            if not folder_path.exists():
+                QMessageBox.warning(self, "Ошибка", f"Папка не найдена: {folder_path}")
+                return
+            
+            # Открываем папку в проводнике в зависимости от ОС
+            if platform.system() == "Windows":
+                os.startfile(str(folder_path))
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", str(folder_path)])
+            else:  # Linux
+                subprocess.run(["xdg-open", str(folder_path)])
+            
+            print(f"📂 Открыта папка с результатами: {folder_path}")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось открыть папку: {str(e)}")
+            print(f"❌ Ошибка при открытии папки: {e}")
+    
+    def open_general_results_folder(self):
+        """Открытие общей папки results"""
+        try:
+            # Создаем папку results если её нет
+            results_path = Path("results")
+            results_path.mkdir(exist_ok=True)
+            
+            # Открываем папку в проводнике в зависимости от ОС
+            if platform.system() == "Windows":
+                os.startfile(str(results_path))
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", str(results_path)])
+            else:  # Linux
+                subprocess.run(["xdg-open", str(results_path)])
+            
+            print(f"📂 Открыта общая папка results: {results_path}")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось открыть папку results: {str(e)}")
+            print(f"❌ Ошибка при открытии папки results: {e}")
 
 
 def main():
