@@ -1,6 +1,6 @@
 {
   "model_name": "microsoft/trocr-base-handwritten",
-  "dataset_path": "IAM/image",
-  "annotations_path": "IAM/gt_test.txt",
-  "limit": 10
+  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/SMHD-lines/SMHD_edin",
+  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/SMHD-lines/transformes.txt",
+  "limit": 50
 }

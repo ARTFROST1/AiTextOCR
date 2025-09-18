@@ -1765,18 +1765,16 @@ class MainWindow(QMainWindow):
         # Извлекаем название датасета из пути
         dataset_short = "unknown"
         if dataset_path:
-            # Берем последнюю часть пути (имя папки)
-            dataset_short = os.path.basename(dataset_path.rstrip('/\\'))
-            # Если это стандартный IAM, делаем более читаемым
-            if dataset_short.lower() in ['image', 'images']:
+            # Нормализуем путь
+            normalized_path = dataset_path.rstrip('/\\')
+            
+            # Всегда берем родительскую папку как название датасета
+            # Это работает независимо от названия папки с изображениями
+            dataset_short = os.path.basename(os.path.dirname(normalized_path))
+            
+            # Специальные случаи для известных датасетов
+            if dataset_short.lower() in ['iam']:
                 dataset_short = "IAM"
-            elif dataset_short.lower() in ['test', 'train', 'val']:
-                # Если это подпапка, берем родительскую папку
-                parent_dir = os.path.basename(os.path.dirname(dataset_path))
-                if parent_dir.lower() in ['iam', 'dataset']:
-                    dataset_short = f"IAM-{dataset_short}"
-                else:
-                    dataset_short = f"{parent_dir}-{dataset_short}"
         
         # Создаем название папки
         folder_name = f"{timestamp}_{dataset_short}_{model_short}"
