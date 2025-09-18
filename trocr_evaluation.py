@@ -97,44 +97,85 @@ class TrOCREvaluator:
             print(f"Ошибка при распознавании текста {image_path}: {e}")
             return ""
     
+    def normalize_text(self, text: str) -> str:
+        """
+        Улучшенная нормализация текста для более точного расчета метрик
+        
+        Args:
+            text: Исходный текст
+            
+        Returns:
+            Нормализованный текст
+        """
+        if text is None:
+            return ""
+        
+        # Создаем комплексную нормализацию
+        norm = jiwer.Compose([
+            # Удаляем лишние пробелы в начале и конце
+            jiwer.Strip(),
+            # Приводим к нижнему регистру
+            jiwer.ToLowerCase(),
+            # Удаляем множественные пробелы
+            jiwer.RemoveMultipleSpaces(),
+            # Удаляем знаки препинания в конце слов (опционально)
+            jiwer.RemovePunctuation(),
+            # Удаляем лишние пробелы после удаления пунктуации
+            jiwer.RemoveMultipleSpaces(),
+            # Удаляем пустые токены
+            jiwer.RemoveEmptyStrings(),
+        ])
+        
+        return norm(text)
+    
     def calculate_metrics(self, reference: str, hypothesis: str):
         """
-        Расчет WER и CER по стандарту (Левенштейн) с нормализацией текста
+        Улучшенный расчет WER и CER с более точной нормализацией
         
         Returns:
-            (WER%, CER%)
+            (WER%, CER%, word_accuracy%, char_accuracy%)
         """
-        # Нормализация: привести к нижнему регистру, убрать лишние пробелы
-        norm = jiwer.Compose([
-            jiwer.ToLowerCase(),
-            jiwer.Strip(),
-            jiwer.RemoveMultipleSpaces(),
-        ])
+        # Нормализуем тексты
+        ref = self.normalize_text(reference)
+        hyp = self.normalize_text(hypothesis)
 
-        ref = norm(reference if reference is not None else "")
-        hyp = norm(hypothesis if hypothesis is not None else "")
-
-        # edge-cases: пустая ссылка и/или предсказание
+        # Обработка edge cases
         if ref == "" and hyp == "":
-            return 0.0, 0.0
+            return 0.0, 0.0, 100.0, 100.0
         if ref == "" and hyp != "":
-            return 100.0, 100.0
+            return 100.0, 100.0, 0.0, 0.0
+        if ref != "" and hyp == "":
+            return 100.0, 100.0, 0.0, 0.0
 
         try:
+            # Расчет WER с использованием jiwer
             wer = jiwer.wer(ref, hyp) * 100.0
-        except Exception:
-            wer = 100.0
-
-        try:
+            
+            # Расчет CER с использованием jiwer
             cer = jiwer.cer(ref, hyp) * 100.0
-        except Exception:
+            
+            # Расчет точности на уровне слов
+            word_accuracy = max(0.0, 100.0 - wer)
+            
+            # Расчет точности на уровне символов
+            char_accuracy = max(0.0, 100.0 - cer)
+            
+        except Exception as e:
+            print(f"Ошибка при расчете метрик: {e}")
+            # В случае ошибки возвращаем максимальные значения ошибок
+            wer = 100.0
             cer = 100.0
+            word_accuracy = 0.0
+            char_accuracy = 0.0
 
-        return wer, cer
+        return wer, cer, word_accuracy, char_accuracy
 
     def calculate_wer(self, ground_truth: str, prediction: str) -> float:
         """
         Вычисление Word Error Rate (WER)
+        
+        WER = (S + D + I) / N * 100%
+        где S = замены, D = удаления, I = вставки, N = общее количество слов в эталоне
         
         Args:
             ground_truth: Эталонный текст
@@ -143,12 +184,15 @@ class TrOCREvaluator:
         Returns:
             WER в процентах
         """
-        wer, _ = self.calculate_metrics(ground_truth, prediction)
+        wer, _, _, _ = self.calculate_metrics(ground_truth, prediction)
         return wer
     
     def calculate_cer(self, ground_truth: str, prediction: str) -> float:
         """
         Вычисление Character Error Rate (CER)
+        
+        CER = (S + D + I) / N * 100%
+        где S = замены, D = удаления, I = вставки, N = общее количество символов в эталоне
         
         Args:
             ground_truth: Эталонный текст
@@ -157,12 +201,14 @@ class TrOCREvaluator:
         Returns:
             CER в процентах
         """
-        _, cer = self.calculate_metrics(ground_truth, prediction)
+        _, cer, _, _ = self.calculate_metrics(ground_truth, prediction)
         return cer
     
     def calculate_accuracy(self, ground_truth: str, prediction: str) -> float:
         """
-        Вычисление точности (Accuracy)
+        Вычисление точности (Accuracy) на уровне символов
+        
+        Accuracy = (1 - CER) * 100%
         
         Args:
             ground_truth: Эталонный текст
@@ -171,9 +217,24 @@ class TrOCREvaluator:
         Returns:
             Accuracy в процентах
         """
-        # Определим accuracy на уровне символов как 100 * (1 - CER)
-        cer = self.calculate_cer(ground_truth, prediction)
-        return max(0.0, 100.0 - cer)
+        _, _, _, char_accuracy = self.calculate_metrics(ground_truth, prediction)
+        return char_accuracy
+    
+    def calculate_word_accuracy(self, ground_truth: str, prediction: str) -> float:
+        """
+        Вычисление точности на уровне слов
+        
+        Word Accuracy = (1 - WER) * 100%
+        
+        Args:
+            ground_truth: Эталонный текст
+            prediction: Предсказанный текст
+            
+        Returns:
+            Word Accuracy в процентах
+        """
+        _, _, word_accuracy, _ = self.calculate_metrics(ground_truth, prediction)
+        return word_accuracy
     
     def evaluate_dataset(self, dataset_path: str, annotations_file: str = None, limit: int = 50) -> Dict:
         """
@@ -191,7 +252,8 @@ class TrOCREvaluator:
             'ground_truths': [],
             'wer_scores': [],
             'cer_scores': [],
-            'accuracy_scores': []
+            'accuracy_scores': [],
+            'word_accuracy_scores': []
         }
         
         # Если аннотации не предоставлены, используем имена файлов
@@ -214,17 +276,16 @@ class TrOCREvaluator:
             # Распознавание текста
             prediction = self.predict_text(image_path)
             
-            # Вычисление метрик
-            wer = self.calculate_wer(ground_truth, prediction)
-            cer = self.calculate_cer(ground_truth, prediction)
-            accuracy = self.calculate_accuracy(ground_truth, prediction)
+            # Вычисление всех метрик одним вызовом
+            wer, cer, word_accuracy, char_accuracy = self.calculate_metrics(ground_truth, prediction)
             
             # Сохранение результатов
             results['predictions'].append(prediction)
             results['ground_truths'].append(ground_truth)
             results['wer_scores'].append(wer)
             results['cer_scores'].append(cer)
-            results['accuracy_scores'].append(accuracy)
+            results['accuracy_scores'].append(char_accuracy)  # Character accuracy
+            results['word_accuracy_scores'].append(word_accuracy)  # Word accuracy
         
         return results
     
@@ -295,10 +356,16 @@ class TrOCREvaluator:
             'std_cer': np.std(results['cer_scores']),
             'mean_accuracy': np.mean(results['accuracy_scores']),
             'std_accuracy': np.std(results['accuracy_scores']),
+            'mean_word_accuracy': np.mean(results['word_accuracy_scores']),
+            'std_word_accuracy': np.std(results['word_accuracy_scores']),
             'min_wer': np.min(results['wer_scores']),
             'max_wer': np.max(results['wer_scores']),
             'min_cer': np.min(results['cer_scores']),
-            'max_cer': np.max(results['cer_scores'])
+            'max_cer': np.max(results['cer_scores']),
+            'min_accuracy': np.min(results['accuracy_scores']),
+            'max_accuracy': np.max(results['accuracy_scores']),
+            'min_word_accuracy': np.min(results['word_accuracy_scores']),
+            'max_word_accuracy': np.max(results['word_accuracy_scores'])
         }
         
         return stats
@@ -368,7 +435,8 @@ class TrOCREvaluator:
                 'prediction': results['predictions'][i],
                 'wer': results['wer_scores'][i],
                 'cer': results['cer_scores'][i],
-                'accuracy': results['accuracy_scores'][i]
+                'accuracy': results['accuracy_scores'][i],
+                'word_accuracy': results['word_accuracy_scores'][i]
             })
         
         with open(output_path, 'w', encoding='utf-8') as f:
@@ -380,7 +448,8 @@ class TrOCREvaluator:
             'prediction': results['predictions'],
             'wer': results['wer_scores'],
             'cer': results['cer_scores'],
-            'accuracy': results['accuracy_scores']
+            'accuracy': results['accuracy_scores'],
+            'word_accuracy': results['word_accuracy_scores']
         })
         
         csv_path = output_path.replace('.json', '.csv')
