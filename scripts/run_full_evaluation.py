@@ -177,9 +177,13 @@ def run_full_evaluation():
         
         # Красивое отображение статистики
         print(f"📈 Обработано образцов: {stats['total_samples']}")
-        print(f"📊 Средний WER:        {stats['mean_wer']:.2f}% ± {stats['std_wer']:.2f}%")
-        print(f"📊 Средний CER:        {stats['mean_cer']:.2f}% ± {stats['std_cer']:.2f}%")
-        print(f"📊 Средняя точность:   {stats['mean_accuracy']:.2f}% ± {stats['std_accuracy']:.2f}%")
+        print("\n")
+        print(f"📉 Средний WER:        {stats['mean_wer']:.2f}%")
+        print(f"📈 Средний CER:        {stats['mean_cer']:.2f}%")
+        print(f"📊 Средняя точность:   {stats['mean_accuracy']:.2f}%")
+        print("\n")
+        print(f"📉 Стандартное отклонение WER: {stats['std_wer']:.2f}%")
+        print(f"📈 Стандартное отклонение CER: {stats['std_cer']:.2f}%")
         
         # Оценка качества
         print(f"\n🎯 ОЦЕНКА КАЧЕСТВА:")
