@@ -94,6 +94,7 @@ def test_installation():
         import tqdm
         import sklearn
         import cv2
+        import easyocr
 
         print("✓ Все основные библиотеки установлены успешно")
 
@@ -102,6 +103,15 @@ def test_installation():
             print(f"✓ CUDA доступна: {torch.cuda.get_device_name(0)} (cuda {torch.version.cuda})")
         else:
             print("ℹ CUDA недоступна, будет использоваться CPU")
+
+        # Проверяем EasyOCR + GPU
+        try:
+            use_gpu = torch.cuda.is_available()
+            reader = easyocr.Reader(['en'], gpu=use_gpu)
+            print(f"✓ EasyOCR загружен успешно (gpu={'on' if use_gpu else 'off'})")
+        except Exception as e:
+            print(f"✗ Проблема с инициализацией EasyOCR: {e}")
+            return False
 
         return True
 

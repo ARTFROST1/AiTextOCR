@@ -37,6 +37,7 @@ from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, QRect
 
 # Импорт нашей логики TrOCR
 from trocr_evaluation import TrOCREvaluator
+from easyocr_evaluation import EasyOCREvaluator
 
 
 # Цветовые схемы для графиков
@@ -1128,7 +1129,7 @@ class MainWindow(QMainWindow):
         model_layout.setContentsMargins(20, 20, 20, 20)
         
         # Заголовок модели
-        model_label = QLabel("🤖 Модель TrOCR:")
+        model_label = QLabel("🤖 Модель OCR:")
         model_label.setStyleSheet(f"""
             QLabel {{
                 color: {ModernColors.TEXT_PRIMARY};
@@ -1141,7 +1142,9 @@ class MainWindow(QMainWindow):
         self.model_combo = QComboBox()
         self.model_combo.addItems([
             "microsoft/trocr-base-handwritten",
-            "microsoft/trocr-large-handwritten"
+            "microsoft/trocr-large-handwritten",
+            "easyocr:en",
+            "easyocr:ru+en"
         ])
         self.model_combo.setStyleSheet(ModernStyles.get_input_style())
         model_layout.addWidget(self.model_combo, 0, 1)
@@ -1286,6 +1289,24 @@ class MainWindow(QMainWindow):
         
         layout.addStretch()
         self.tab_widget.addTab(settings_widget, "🏠 Главная")
+
+    def update_model_info(self, model_name):
+        """Обновление информации о выбранной модели"""
+        try:
+            if model_name.startswith("easyocr:"):
+                langs = model_name.split(":", 1)[1]
+                self.model_info_label.setText(
+                    f"EasyOCR: быстрый детектор+распознавание, языки: {langs}, использует GPU при наличии"
+                )
+            elif "base" in model_name:
+                self.model_info_label.setText("Base модель: быстрее, меньше размер")
+            elif "large" in model_name:
+                self.model_info_label.setText("Large модель: медленнее, выше точность")
+            else:
+                self.model_info_label.setText("Выберите подходящую модель")
+        except Exception:
+            # На случай, если label еще не создан
+            pass
     
     def setup_results_tab(self):
         """Настройка вкладки с результатами"""
@@ -1470,21 +1491,14 @@ class MainWindow(QMainWindow):
             self.dataset_path_edit.textChanged.connect(self.auto_save_settings)
         if hasattr(self, 'annotations_path_edit'):
             self.annotations_path_edit.textChanged.connect(self.auto_save_settings)
-        if hasattr(self, 'limit_spinbox'):
-            self.limit_spinbox.valueChanged.connect(self.auto_save_settings)
-    
-    def update_model_info(self, model_name):
-        """Обновление информации о выбранной модели"""
-        if "base" in model_name:
-            self.model_info_label.setText("Base модель: быстрее, меньше размер")
-        elif "large" in model_name:
-            self.model_info_label.setText("Large модель: точнее, больше размер")
-        else:
-            self.model_info_label.setText("")
-    
+        
     def browse_dataset(self):
-        """Выбор папки с изображениями"""
-        folder = QFileDialog.getExistingDirectory(self, "Выберите папку с изображениями")
+        """Выбор папки с изображениями датасета"""
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Выберите папку с изображениями",
+            ""
+        )
         if folder:
             self.dataset_path_edit.setText(folder)
     
@@ -1528,7 +1542,11 @@ class MainWindow(QMainWindow):
             
             # Инициализируем оценщик
             self.status_label.setText("Инициализация модели...")
-            self.evaluator = TrOCREvaluator(model_name)
+            if model_name.startswith("easyocr:"):
+                langs = model_name.split(":", 1)[1]
+                self.evaluator = EasyOCREvaluator(langs=langs)
+            else:
+                self.evaluator = TrOCREvaluator(model_name)
             
             # Настраиваем UI
             self.main_action_btn.setText("⏹️ Остановить")
@@ -1545,7 +1563,7 @@ class MainWindow(QMainWindow):
             
             # Выводим информацию о начале оценки в консоль
             print("\n" + "="*60)
-            print("🚀 ЗАПУСК ОЦЕНКИ МОДЕЛИ TrOCR")
+            print("🚀 ЗАПУСК ОЦЕНКИ МОДЕЛИ OCR")
             print("="*60)
             print(f"📊 Модель: {model_name}")
             print(f"📁 Датасет: {dataset_path}")
@@ -1838,6 +1856,9 @@ class MainWindow(QMainWindow):
         # Извлекаем короткое название модели
         model_short = model_name.split("/")[-1] if "/" in model_name else model_name
         model_short = model_short.replace("microsoft-", "").replace("trocr-", "")
+        # Санитизируем недопустимые символы для имени папки (Windows/Linux)
+        for ch in ['\\\\', '/', ':', '*', '?', '"', '<', '>', '|']:
+            model_short = model_short.replace(ch, '_')
         
         # Извлекаем название датасета из пути
         dataset_short = "unknown"
