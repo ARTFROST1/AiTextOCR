@@ -1143,6 +1143,7 @@ class MainWindow(QMainWindow):
         self.model_combo.addItems([
             "microsoft/trocr-base-handwritten",
             "microsoft/trocr-large-handwritten",
+            "raxtemur/trocr-base-ru",
             "easyocr:en",
             "easyocr:ru+en"
         ])
@@ -1298,6 +1299,8 @@ class MainWindow(QMainWindow):
                 self.model_info_label.setText(
                     f"EasyOCR: быстрый детектор+распознавание, языки: {langs}, использует GPU при наличии"
                 )
+            elif model_name == "raxtemur/trocr-base-ru":
+                self.model_info_label.setText("TrOCR-Ru (base): русскоязычная рукописная модель (HF community), основана на trocr-base-handwritten.")
             elif "base" in model_name:
                 self.model_info_label.setText("Base модель: быстрее, меньше размер")
             elif "large" in model_name:

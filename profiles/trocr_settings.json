@@ -1,6 +1,6 @@
 {
-  "model_name": "easyocr:ru+en",
-  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/iam_dataset/wordsedin",
-  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/iam_dataset/gt_final.txt",
-  "limit": 50
+  "model_name": "raxtemur/trocr-base-ru",
+  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/SMHD-lines/SMHD_edin",
+  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/SMHD-lines/transformes.txt",
+  "limit": 10
 }
