@@ -10,7 +10,6 @@ def check_dependencies():
     """Проверка зависимостей"""
     try:
         import PyQt5
-        import qdarkstyle
         import matplotlib
         import torch
         import transformers

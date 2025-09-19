@@ -1,6 +1,6 @@
 {
   "model_name": "raxtemur/trocr-base-ru",
-  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/SMHD-lines/SMHD_edin",
-  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/SMHD-lines/transformes.txt",
+  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/Rus_dataset/img",
+  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/Rus_dataset/gt_final_2.txt",
   "limit": 10
 }
