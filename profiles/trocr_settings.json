@@ -1,6 +1,6 @@
 {
-  "model_name": "easyocr:en",
-  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/printed_en/14",
-  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/printed_en/14_1.txt",
-  "limit": 50
+  "model_name": "easyocr:ru+en",
+  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/printed_ru/8",
+  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/printed_ru/8_1.txt",
+  "limit": 100
 }

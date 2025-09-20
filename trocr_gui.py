@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem, QHeaderView, QCheckBox, QLineEdit, QTextBrowser,
     QSizePolicy, QScrollBar, QToolButton
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QEvent
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap, QIcon
 
 import qdarkstyle
@@ -1313,10 +1313,21 @@ class MainWindow(QMainWindow):
         dataset_layout.addWidget(self.limit_title_label, 2, 0)
         
         self.limit_spinbox = QSpinBox()
-        self.limit_spinbox.setRange(1, 1000)
+        self.limit_spinbox.setRange(1, 1000000)
+        self.limit_spinbox.setSingleStep(10)
+        self.limit_spinbox.setAccelerated(True)
+        self.limit_spinbox.setToolTip("Стрелки: +/−10, Ctrl+Стрелка: +/−100")
         self.limit_spinbox.setValue(50)
+        # Обработка Ctrl+Стрелка для шага 100
+        self.limit_spinbox.installEventFilter(self)
         self.limit_spinbox.setStyleSheet(ModernStyles.get_input_style(ModernColors if self.current_theme=='dark' else ModernColorsLight))
         dataset_layout.addWidget(self.limit_spinbox, 2, 1)
+        
+        # Кнопка быстрого выбора максимума (размер датасета)
+        self.limit_max_btn = QPushButton("Max")
+        self.limit_max_btn.setToolTip("Установить количество равным размеру датасета")
+        self.limit_max_btn.setStyleSheet(ModernStyles.get_button_style("secondary", ModernColors if self.current_theme=='dark' else ModernColorsLight))
+        dataset_layout.addWidget(self.limit_max_btn, 2, 2)
         
         layout.addWidget(dataset_group)
         
@@ -1578,6 +1589,9 @@ class MainWindow(QMainWindow):
         self.load_settings_btn.clicked.connect(self.load_settings)
         self.open_general_results_btn.clicked.connect(self.open_general_results_folder)
         self.open_results_btn.clicked.connect(self.open_results_folder)
+        # Кнопка Max для лимита
+        if hasattr(self, 'limit_max_btn'):
+            self.limit_max_btn.clicked.connect(self.set_limit_to_max)
         
         # Автоматическое сохранение при изменении настроек
         if hasattr(self, 'model_combo'):
@@ -1586,6 +1600,8 @@ class MainWindow(QMainWindow):
             self.dataset_path_edit.textChanged.connect(self.auto_save_settings)
         if hasattr(self, 'annotations_path_edit'):
             self.annotations_path_edit.textChanged.connect(self.auto_save_settings)
+        if hasattr(self, 'limit_spinbox'):
+            self.limit_spinbox.valueChanged.connect(self.auto_save_settings)
 
     def toggle_app_theme(self):
         """Глобальное переключение темы приложения"""
@@ -1626,6 +1642,8 @@ class MainWindow(QMainWindow):
             self.open_general_results_btn.setStyleSheet(ModernStyles.get_button_style("warning", colors))
             self.open_results_btn.setStyleSheet(ModernStyles.get_button_style("error", colors))
             self.app_theme_btn.setStyleSheet(ModernStyles.get_button_style("secondary", colors))
+            if hasattr(self, 'limit_max_btn'):
+                self.limit_max_btn.setStyleSheet(ModernStyles.get_button_style("secondary", colors))
             # Инпуты
             self.model_combo.setStyleSheet(ModernStyles.get_input_style(colors))
             self.dataset_path_edit.setStyleSheet(ModernStyles.get_input_style(colors))
@@ -1755,6 +1773,57 @@ class MainWindow(QMainWindow):
         )
         if file_path:
             self.annotations_path_edit.setText(file_path)
+    
+    def compute_dataset_size(self) -> int:
+        """Подсчет размера датасета по аннотациям или по числу изображений в папке."""
+        try:
+            ann_path = self.annotations_path_edit.text().strip() if hasattr(self, 'annotations_path_edit') else ''
+            ds_path = self.dataset_path_edit.text().strip() if hasattr(self, 'dataset_path_edit') else ''
+            # Сначала пробуем по аннотациям
+            if ann_path and os.path.isfile(ann_path):
+                count = 0
+                with open(ann_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        if line.strip():
+                            count += 1
+                return count
+            # Иначе считаем изображения в папке
+            exts = {'.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff', '.webp'}
+            if ds_path and os.path.isdir(ds_path):
+                total = 0
+                for root, _, files in os.walk(ds_path):
+                    for name in files:
+                        if os.path.splitext(name)[1].lower() in exts:
+                            total += 1
+                return total
+        except Exception as e:
+            print(f"⚠️ Не удалось вычислить размер датасета: {e}")
+        return 0
+
+    def set_limit_to_max(self):
+        """Установить лимит равным размеру датасета (с учетом верхней границы спинбокса)."""
+        size = self.compute_dataset_size()
+        if size <= 0:
+            QMessageBox.information(self, "Размер датасета", "Не удалось определить размер датасета. Проверьте пути к данным и аннотациям.")
+            return
+        max_allowed = self.limit_spinbox.maximum()
+        new_val = min(size, max_allowed)
+        self.limit_spinbox.setValue(new_val)
+        print(f"✅ Установлен лимит изображений: {new_val} (размер датасета: {size})")
+
+    def eventFilter(self, obj, event):
+        """Обработка горячих клавиш для шага по 100 при Ctrl+Стрелка на спинбоксе лимита."""
+        if obj is getattr(self, 'limit_spinbox', None) and event.type() == QEvent.KeyPress:
+            key = event.key()
+            if key in (Qt.Key_Up, Qt.Key_Down):
+                step = 100 if (event.modifiers() & Qt.ControlModifier) else 10
+                current = self.limit_spinbox.value()
+                delta = step if key == Qt.Key_Up else -step
+                new_val = max(self.limit_spinbox.minimum(), min(self.limit_spinbox.maximum(), current + delta))
+                if new_val != current:
+                    self.limit_spinbox.setValue(new_val)
+                return True
+        return super().eventFilter(obj, event)
     
     def toggle_evaluation(self):
         """Переключение между запуском и остановкой оценки"""
