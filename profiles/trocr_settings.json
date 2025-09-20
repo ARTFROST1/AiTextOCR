@@ -1,6 +1,6 @@
 {
-  "model_name": "microsoft/trocr-base-handwritten",
-  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/Cyrillic/train",
-  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/Cyrillic/train.txt",
+  "model_name": "easyocr:en",
+  "dataset_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/printed_en/14",
+  "annotations_path": "C:/Users/moroz/Desktop/AiTextOCR/datasets/printed_en/14_1.txt",
   "limit": 50
 }
