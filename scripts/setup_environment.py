@@ -1,11 +1,12 @@
 """
-Скрипт для автоматической настройки окружения (CUDA-ready)
+Скрипт для автоматической настройки окружения (GPU/CPU auto)
 """
 
 import subprocess
 import sys
 import os
 from pathlib import Path
+import shutil
 
 
 def run_command(command, description):
@@ -24,8 +25,8 @@ def run_command(command, description):
 def check_python_version():
     """Проверка версии Python"""
     version = sys.version_info
-    if version.major < 3 or (version.major == 3 and version.minor < 12):
-        print("✗ Требуется Python 3.12 или выше для CUDA-сборок PyTorch")
+    if version.major < 3 or (version.major == 3 and version.minor < 10):
+        print("✗ Требуется Python 3.10 или выше")
         print(f"Текущая версия: {version.major}.{version.minor}.{version.micro}")
         return False
     else:
@@ -59,16 +60,42 @@ def get_python_command():
         return "venv_cuda/bin/python"
 
 
-def install_pytorch_cuda():
-    """Установка CUDA-сборки PyTorch (cu121)"""
-    pip_cmd = get_pip_command()
-    # Сначала обновим pip
-    if not run_command(f"{pip_cmd} install --upgrade pip", "Обновление pip"):
+def detect_cuda_available():
+    """Грубая проверка наличия CUDA (по nvidia-smi)."""
+    # Принудительное отключение через переменную окружения
+    if os.environ.get("FORCE_CPU", "").lower() in ("1", "true", "yes"):
         return False
-    # Затем ставим CUDA-сборки torch/torchvision
+    nvidia_smi = shutil.which("nvidia-smi")
+    return nvidia_smi is not None
+
+
+def install_pytorch_auto():
+    """Авто-установка PyTorch: CUDA (cu121) если доступно, иначе CPU.
+    Порядок:
+      1) обновить pip
+      2) попробовать CUDA колеса
+      3) при ошибке откатиться на CPU
+    """
+    pip_cmd = get_pip_command()
+    # Сначала обновим pip и wheel/setuptools
+    if not run_command(f"{pip_cmd} install --upgrade pip setuptools wheel", "Обновление pip/setuptools/wheel"):
+        return False
+
+    wants_cuda = detect_cuda_available()
+    if wants_cuda:
+        print("Обнаружена система с NVIDIA (nvidia-smi найден). Попытка установить PyTorch CUDA (cu121)...")
+        if run_command(
+            f"{pip_cmd} install --index-url https://download.pytorch.org/whl/cu121 torch torchvision",
+            "Установка PyTorch CUDA (cu121)"
+        ):
+            return True
+        else:
+            print("ℹ Не удалось установить CUDA-версию PyTorch. Переходим на CPU-вариант...")
+
+    # CPU вариант с официального индекса PyTorch
     return run_command(
-        f"{pip_cmd} install --index-url https://download.pytorch.org/whl/cu121 torch torchvision",
-        "Установка PyTorch CUDA (cu121)"
+        f"{pip_cmd} install --index-url https://download.pytorch.org/whl/cpu torch torchvision",
+        "Установка PyTorch CPU"
     )
 
 
@@ -100,13 +127,18 @@ def test_installation():
 
         # Проверяем доступность GPU
         if torch.cuda.is_available():
-            print(f"✓ CUDA доступна: {torch.cuda.get_device_name(0)} (cuda {torch.version.cuda})")
+            try:
+                device_name = torch.cuda.get_device_name(0)
+            except Exception:
+                device_name = "CUDA GPU"
+            print(f"✓ CUDA доступна: {device_name} (cuda {torch.version.cuda})")
         else:
             print("ℹ CUDA недоступна, будет использоваться CPU")
 
         # Проверяем EasyOCR + GPU
         try:
             use_gpu = torch.cuda.is_available()
+            # Минимальный набор языков; можно расширить по необходимости
             reader = easyocr.Reader(['en'], gpu=use_gpu)
             print(f"✓ EasyOCR загружен успешно (gpu={'on' if use_gpu else 'off'})")
         except Exception as e:
@@ -138,7 +170,7 @@ def create_project_structure():
 def main():
     """Основная функция настройки"""
     print("="*60)
-    print("НАСТРОЙКА CUDA ОКРУЖЕНИЯ ДЛЯ TrOCR EVALUATION")
+    print("НАСТРОЙКА ОКРУЖЕНИЯ ДЛЯ AiTextOCR (GPU/CPU)")
     print("="*60)
 
     if not check_python_version():
@@ -149,8 +181,8 @@ def main():
         print(f"{sys.executable} -m venv venv_cuda")
         sys.exit(1)
 
-    if not install_pytorch_cuda():
-        print("\nНе удалось установить CUDA PyTorch. Проверьте совместимость CUDA/драйверов.")
+    if not install_pytorch_auto():
+        print("\nНе удалось установить PyTorch (CUDA/CPU). Проверьте подключение к интернету и совместимость системы.")
         sys.exit(1)
 
     if not install_requirements():
@@ -176,7 +208,9 @@ def main():
     else:
         print("   source venv_cuda/bin/activate")
 
-    print("\n2. Запустите оценку:")
+    print("\n2. Запуск GUI:")
+    print("   python run_gui.py")
+    print("\n3. Запуск консольной оценки:")
     print("   python scripts/run_full_evaluation.py")
 
 
