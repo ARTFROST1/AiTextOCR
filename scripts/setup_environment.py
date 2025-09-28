@@ -9,16 +9,24 @@ from pathlib import Path
 import shutil
 
 
-def run_command(command, description):
+def run_command(command, description, show_output=False):
     """Выполнение команды с выводом описания"""
     print(f"\n{description}...")
     try:
-        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        if show_output:
+            # Показываем вывод в реальном времени для важных команд (установка пакетов)
+            result = subprocess.run(command, shell=True, check=True, text=True)
+        else:
+            # Скрываем вывод для простых команд
+            result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
         print(f"✓ {description} завершено успешно")
         return True
     except subprocess.CalledProcessError as e:
         print(f"✗ Ошибка при {description.lower()}: {e}")
-        print(f"Вывод ошибки: {e.stderr}")
+        if hasattr(e, 'stderr') and e.stderr:
+            print(f"Детали ошибки: {e.stderr}")
+        if hasattr(e, 'stdout') and e.stdout:
+            print(f"Вывод команды: {e.stdout}")
         return False
 
 
@@ -78,7 +86,7 @@ def install_pytorch_auto():
     """
     pip_cmd = get_pip_command()
     # Сначала обновим pip и wheel/setuptools
-    if not run_command(f"{pip_cmd} install --upgrade pip setuptools wheel", "Обновление pip/setuptools/wheel"):
+    if not run_command(f"{pip_cmd} install --upgrade pip setuptools wheel", "Обновление pip/setuptools/wheel", show_output=True):
         return False
 
     wants_cuda = detect_cuda_available()
@@ -86,7 +94,8 @@ def install_pytorch_auto():
         print("Обнаружена система с NVIDIA (nvidia-smi найден). Попытка установить PyTorch CUDA (cu121)...")
         if run_command(
             f"{pip_cmd} install --index-url https://download.pytorch.org/whl/cu121 torch torchvision",
-            "Установка PyTorch CUDA (cu121)"
+            "Установка PyTorch CUDA (cu121)",
+            show_output=True
         ):
             return True
         else:
@@ -95,14 +104,15 @@ def install_pytorch_auto():
     # CPU вариант с официального индекса PyTorch
     return run_command(
         f"{pip_cmd} install --index-url https://download.pytorch.org/whl/cpu torch torchvision",
-        "Установка PyTorch CPU"
+        "Установка PyTorch CPU",
+        show_output=True
     )
 
 
 def install_requirements():
     """Установка остальных зависимостей"""
     pip_cmd = get_pip_command()
-    return run_command(f"{pip_cmd} install -r requirements.txt", "Установка зависимостей из requirements.txt")
+    return run_command(f"{pip_cmd} install -r requirements.txt", "Установка зависимостей из requirements.txt", show_output=True)
 
 
 def test_installation():
@@ -135,14 +145,12 @@ def test_installation():
         else:
             print("ℹ CUDA недоступна, будет использоваться CPU")
 
-        # Проверяем EasyOCR + GPU
+        # Проверяем EasyOCR (без инициализации Reader для экономии времени и памяти)
         try:
-            use_gpu = torch.cuda.is_available()
-            # Минимальный набор языков; можно расширить по необходимости
-            reader = easyocr.Reader(['en'], gpu=use_gpu)
-            print(f"✓ EasyOCR загружен успешно (gpu={'on' if use_gpu else 'off'})")
+            import easyocr
+            print("✓ EasyOCR импортирован успешно (Reader будет создан при первом использовании)")
         except Exception as e:
-            print(f"✗ Проблема с инициализацией EasyOCR: {e}")
+            print(f"✗ Проблема с импортом EasyOCR: {e}")
             return False
 
         return True
@@ -177,34 +185,53 @@ def main():
         sys.exit(1)
 
     if not create_virtual_environment():
-        print("\nПопробуйте создать виртуальное окружение вручную:")
-        print(f"{sys.executable} -m venv venv_cuda")
+        print("\n❌ ОШИБКА: Не удалось создать виртуальное окружение")
+        print("Попробуйте создать виртуальное окружение вручную:")
+        print(f"   {sys.executable} -m venv venv_cuda")
+        print("Затем активируйте его и установите зависимости вручную:")
+        if os.name == 'nt':
+            print("   .\\venv_cuda\\Scripts\\activate")
+        else:
+            print("   source venv_cuda/bin/activate")
+        print("   pip install -r requirements.txt")
         sys.exit(1)
 
     if not install_pytorch_auto():
-        print("\nНе удалось установить PyTorch (CUDA/CPU). Проверьте подключение к интернету и совместимость системы.")
+        print("\n❌ ОШИБКА: Не удалось установить PyTorch")
+        print("Возможные причины:")
+        print("- Нет подключения к интернету")
+        print("- Проблемы с pip или setuptools")
+        print("- Несовместимость версий")
+        print("\nПопробуйте установить вручную:")
+        print("1. Активируйте окружение")
+        print("2. Установите PyTorch: pip install torch torchvision")
         sys.exit(1)
 
     if not install_requirements():
-        print("\nПопробуйте установить зависимости вручную:")
-        print(get_python_command())
-        print("-m pip install -r requirements.txt")
+        print("\n❌ ОШИБКА: Не удалось установить зависимости из requirements.txt")
+        print("Попробуйте установить зависимости вручную:")
+        print("1. Активируйте окружение")
+        print("2. Установите по одной: pip install <package>==<version>")
+        print("   Список пакетов см. в requirements.txt")
         sys.exit(1)
 
     if not test_installation():
-        print("\nЕсть проблемы с установкой. Проверьте зависимости вручную.")
-        sys.exit(1)
+        print("\n⚠️ ПРЕДУПРЕЖДЕНИЕ: Есть проблемы с установкой")
+        print("Некоторые библиотеки могут работать неправильно.")
+        print("Попробуйте запустить приложение - возможно, всё будет работать.")
+        print("Если возникнут ошибки, переустановите проблемные пакеты вручную.")
 
     create_project_structure()
 
     print("\n" + "="*60)
-    print("НАСТРОЙКА ЗАВЕРШЕНА УСПЕШНО!")
+    print("✅ НАСТРОЙКА ЗАВЕРШЕНА!")
     print("="*60)
 
     print("\nСледующие шаги:")
     print("1. Активируйте виртуальное окружение:")
     if os.name == 'nt':
-        print("   venv_cuda\\Scripts\\activate")
+        print("   .\\venv_cuda\\Scripts\\Activate.ps1  # PowerShell")
+        print("   .\\venv_cuda\\Scripts\\activate.bat  # CMD")
     else:
         print("   source venv_cuda/bin/activate")
 
@@ -212,6 +239,11 @@ def main():
     print("   python run_gui.py")
     print("\n3. Запуск консольной оценки:")
     print("   python scripts/run_full_evaluation.py")
+    
+    print("\n💡 Если что-то не работает:")
+    print("   - Проверьте активацию виртуального окружения")
+    print("   - Переустановите проблемные пакеты: pip install <package> --force-reinstall")
+    print("   - Обратитесь к разделу 'Устранение проблем' в README.md")
 
 
 if __name__ == "__main__":

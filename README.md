@@ -98,6 +98,69 @@ $env:FORCE_CPU="1"; python scripts/setup_environment.py
 FORCE_CPU=1 python scripts/setup_environment.py
 ```
 
+### 🔧 Если автоустановка не работает
+
+**Проблема:** Скрипт установки завершается с ошибками или зависимости не работают.
+
+**Решение - ручная установка:**
+
+1. **Создайте виртуальное окружение:**
+```bash
+python -m venv venv_cuda
+```
+
+2. **Активируйте окружение:**
+```bash
+# Windows PowerShell
+.\venv_cuda\Scripts\Activate.ps1
+
+# Windows CMD  
+.\venv_cuda\Scripts\activate.bat
+
+# Linux/macOS
+source venv_cuda/bin/activate
+```
+
+3. **Обновите pip:**
+```bash
+pip install --upgrade pip setuptools wheel
+```
+
+4. **Установите PyTorch:**
+```bash
+# Для GPU (CUDA)
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# Для CPU
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+5. **Установите остальные зависимости по одной:**
+```bash
+pip install transformers==4.41.2
+pip install datasets==2.21.0
+pip install Pillow==10.3.0
+pip install numpy==1.26.4
+pip install matplotlib==3.8.4
+pip install seaborn==0.13.2
+pip install tqdm==4.66.4
+pip install scikit-learn==1.4.2
+pip install jiwer==3.0.4
+pip install opencv-python==4.9.0.80
+pip install pandas==2.2.2
+pip install PyQt5==5.15.10
+pip install qdarkstyle==3.2.3
+pip install easyocr==1.7.1
+pip install scikit-image==0.22.0
+```
+
+**Возможные причины проблем:**
+- Устаревший pip или setuptools
+- Конфликты версий пакетов
+- Проблемы с сетевым подключением
+- Ограничения корпоративного файрвола
+- Недостаточно прав доступа
+
 ## 🏗️ Структура проекта
 
 ```
